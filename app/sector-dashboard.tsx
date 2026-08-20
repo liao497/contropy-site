@@ -209,6 +209,10 @@ export function SectorDashboard() {
         </div>
       </section>
 
+      <footer className="s-site-footer">
+        <span>联系方式</span>
+        <a href="mailto:liao497@126.com">liao497@126.com</a>
+      </footer>
     </main>
   );
 }
