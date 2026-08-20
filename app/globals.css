@@ -1,15 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #101817;
-  --muted: #68726f;
-  --paper: #f2f0e9;
-  --panel: #fbfaf5;
-  --line: #d8d8cf;
+  --ink: #12201d;
+  --muted: #5d6965;
+  --paper: #f3f2ed;
+  --panel: #fffdf8;
+  --line: #d5d9d2;
   --green: #0d6b58;
   --amber: #b56a12;
   --red: #b5433a;
   --navy: #162827;
+  --font-ui: "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --font-display: "Avenir Next", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
+  --font-numeric: "SF Pro Display", "DIN Alternate", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
+  --font-code: "SFMono-Regular", "Roboto Mono", "Cascadia Mono", Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
@@ -18,7 +22,12 @@ body {
   margin: 0;
   background: radial-gradient(circle at 82% 1%, rgba(13, 107, 88, .09), transparent 24rem), var(--paper);
   color: var(--ink);
-  font-family: Inter, "SF Pro Text", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  line-height: 1.55;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 button { color: inherit; font: inherit; }
 

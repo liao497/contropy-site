@@ -209,10 +209,6 @@ export function SectorDashboard() {
         </div>
       </section>
 
-      <details className="s-gaps">
-        <summary><strong>数据缺口</strong><span>{snapshot.data_gaps.length}项未发布</span></summary>
-        <ul>{snapshot.data_gaps.map((gap) => <li key={gap.indicator_id}><b>{gap.indicator_id}</b>{gap.reason}</li>)}</ul>
-      </details>
     </main>
   );
 }
