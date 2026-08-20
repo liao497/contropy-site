@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.morning-signal/snapshot-v1.schema.json",
+  "title": "晨星台每日快照 V1",
+  "type": "object",
+  "required": ["schema_version", "indicator_version", "model_version", "report_date", "as_of", "timezone", "data_state", "metrics", "opportunities", "risks", "events", "data_gaps", "run"],
+  "properties": {
+    "schema_version": { "const": "snapshot-v1.0.0" },
+    "indicator_version": { "type": "string" },
+    "model_version": { "type": "string" },
+    "report_date": { "type": "string", "format": "date" },
+    "as_of": { "type": "string", "format": "date-time" },
+    "timezone": { "const": "Asia/Shanghai" },
+    "data_state": { "enum": ["demo", "partial", "verified"] },
+    "metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["indicator_id", "indicator_name", "module", "frequency", "value", "unit", "period", "previous_value", "previous_period", "yoy_value", "yoy_period", "published_at", "available_at", "retrieved_at", "source_tier", "publisher", "canonical_url", "field_name", "confidence", "coverage", "freshness", "interpretation_type", "interpretation", "transform_formula", "revision_id"],
+        "properties": {
+          "indicator_id": { "type": "string", "pattern": "^M[1-7]-" },
+          "indicator_name": { "type": "string", "minLength": 1 },
+          "module": { "type": "string" },
+          "frequency": { "enum": ["daily", "weekly", "monthly", "quarterly", "event"] },
+          "value": { "type": ["number", "string", "null"] },
+          "unit": { "type": ["string", "null"] },
+          "period": { "type": "string" },
+          "previous_value": { "type": ["number", "string", "null"] },
+          "previous_period": { "type": ["string", "null"] },
+          "yoy_value": { "type": ["number", "string", "null"] },
+          "yoy_period": { "type": ["string", "null"] },
+          "published_at": { "type": ["string", "null"], "format": "date-time" },
+          "available_at": { "type": ["string", "null"], "format": "date-time" },
+          "retrieved_at": { "type": "string", "format": "date-time" },
+          "source_tier": { "enum": ["E0", "E1", "E2", "E3"] },
+          "publisher": { "type": "string" },
+          "canonical_url": { "type": "string" },
+          "field_name": { "type": "string" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "coverage": { "type": "number", "minimum": 0, "maximum": 1 },
+          "freshness": { "type": "number", "minimum": 0, "maximum": 1 },
+          "interpretation_type": { "enum": ["none", "opportunity", "risk", "watch"] },
+          "interpretation": { "type": ["string", "null"] },
+          "transform_formula": { "type": ["string", "null"] },
+          "revision_id": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "opportunities": { "type": "array", "maxItems": 3 },
+    "risks": { "type": "array" },
+    "events": { "type": "array" },
+    "data_gaps": { "type": "array" },
+    "run": { "type": "object" }
+  },
+  "additionalProperties": false
+}

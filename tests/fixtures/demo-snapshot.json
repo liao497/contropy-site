@@ -1,0 +1,70 @@
+{
+  "schema_version": "snapshot-v1.0.0",
+  "indicator_version": "indicator-v1.0.0",
+  "model_version": "sector-swing-v1.0.0",
+  "report_date": "2026-08-19",
+  "as_of": "2026-08-19T07:30:00+08:00",
+  "timezone": "Asia/Shanghai",
+  "data_state": "demo",
+  "metrics": [
+    {
+      "indicator_id": "M1-A05",
+      "indicator_name": "全市场成交额",
+      "module": "market",
+      "frequency": "daily",
+      "value": 11420,
+      "unit": "亿元",
+      "period": "2026-08-18",
+      "previous_value": 10870,
+      "previous_period": "2026-08-17",
+      "yoy_value": "+13.2%",
+      "yoy_period": "2025同期",
+      "published_at": "2026-08-18T15:00:00+08:00",
+      "available_at": "2026-08-18T15:10:00+08:00",
+      "retrieved_at": "2026-08-19T07:00:00+08:00",
+      "source_tier": "E1",
+      "publisher": "示例发布者",
+      "canonical_url": "https://example.invalid/demo",
+      "field_name": "market_turnover",
+      "confidence": 0.9,
+      "coverage": 1,
+      "freshness": 1,
+      "interpretation_type": "watch",
+      "interpretation": "示例：放量等待趋势确认",
+      "transform_formula": null,
+      "revision_id": "r1"
+    }
+  ],
+  "opportunities": [
+    {
+      "rank": 1,
+      "industry_id": "demo-ai",
+      "industry_name": "AI算力与互连（演示）",
+      "horizon": "swing",
+      "opportunity_type": "主线催化",
+      "raw_score": 80,
+      "adjusted_score": 78,
+      "confidence": 0.82,
+      "coverage": 0.8,
+      "freshness": 0.9,
+      "thesis": "仅用于测试归档格式",
+      "confirmation_conditions": "真实数据接入后确认",
+      "risks": "演示数据不可用于投资",
+      "invalidation_conditions": "数据状态不是verified",
+      "model_version": "sector-swing-v1.0.0"
+    }
+  ],
+  "risks": [
+    { "risk_type": "vulnerability", "name": "拥挤度（演示）", "status": "watch", "interpretation": "仅测试" },
+    { "risk_type": "stress", "name": "全球波动（演示）", "status": "clear", "interpretation": null }
+  ],
+  "events": [
+    { "event_at": "2026-08-20T10:00:00+08:00", "window": "7d", "event_name": "演示宏观事件", "impact": "H" }
+  ],
+  "data_gaps": [],
+  "run": {
+    "run_id": "demo-20260819",
+    "revision_id": "r1",
+    "top_call": "本快照仅测试本地长期存档，不代表真实市场判断。"
+  }
+}

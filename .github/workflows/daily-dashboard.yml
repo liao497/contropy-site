@@ -1,0 +1,86 @@
+name: Daily market dashboard
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 7 * * 1-5"
+      timezone: Asia/Shanghai
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-market-dashboard
+  cancel-in-progress: false
+
+jobs:
+  collect-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-data.txt
+          npm ci
+
+      - name: Collect the morning snapshot
+        run: |
+          report_date="$(TZ=Asia/Shanghai date +%F)"
+          python scripts/collect-free-daily.py \
+            --date "$report_date" \
+            --output data/current-snapshot.json \
+            --revision daily \
+            --trading-days-only
+
+      - name: Stop when today is not an A-share trading day
+        id: trading_day
+        run: |
+          report_date="$(TZ=Asia/Shanghai date +%F)"
+          snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
+          if [ "$snapshot_date" = "$report_date" ]; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate and archive
+        if: steps.trading_day.outputs.publish == 'true'
+        run: |
+          report_date="$(node -p "require('./data/current-snapshot.json').report_date")"
+          node scripts/validate-snapshot.mjs data/current-snapshot.json "$report_date"
+          npm test
+          year="${report_date%%-*}"
+          month_day="${report_date#*-}"
+          month="${month_day%%-*}"
+          report_path="reports/daily/$year/$month/$report_date.daily.md"
+          if [ ! -e "$report_path" ]; then
+            npm run archive:report -- data/current-snapshot.json .
+          fi
+
+      - name: Commit the verified snapshot
+        if: steps.trading_day.outputs.publish == 'true'
+        run: |
+          git config user.name "dashboard-bot"
+          git config user.email "dashboard-bot@users.noreply.github.com"
+          git add data/current-snapshot.json data/snapshots reports/daily
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          report_date="$(node -p "require('./data/current-snapshot.json').report_date")"
+          git commit -m "data: update dashboard for $report_date"
+          git push

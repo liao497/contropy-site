@@ -1,5 +1,15 @@
 name = "contropy-site"
-compatibility_date = "2025-05-01"
+main = "./dist/server/index.js"
+compatibility_date = "2026-05-15"
+compatibility_flags = ["nodejs_compat"]
+no_bundle = true
 
 [assets]
-directory = "./"
+directory = "./dist/client"
+
+[build]
+command = "npm run build"
+
+[[rules]]
+type = "ESModule"
+globs = ["**/*.js", "**/*.mjs"]
