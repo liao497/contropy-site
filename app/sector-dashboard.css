@@ -132,6 +132,11 @@
 .s-event-grid p { margin: 0 0 13px; color: var(--green); font-size: 12px; font-weight: 600; }
 .s-event-grid small { color: var(--muted); font-size: 12px; line-height: 1.65; }
 
+.s-site-footer { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 42px; padding: 22px 0 4px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.s-site-footer a { color: var(--ink); font-family: var(--font-numeric); font-weight: 650; text-decoration-color: rgba(181,67,58,.45); text-underline-offset: 4px; }
+.s-site-footer a:hover { color: var(--red); text-decoration-color: var(--red); }
+.s-site-footer a:focus-visible { border-radius: 3px; outline: 3px solid rgba(181,106,18,.28); outline-offset: 4px; }
+
 @media (max-width: 1120px) {
   .s-core-grid { grid-template-columns: repeat(3, 1fr); }
   .s-sentiment-grid, .s-risk-grid, .s-event-grid { grid-template-columns: repeat(2, 1fr); }
@@ -151,6 +156,7 @@
   .s-section { margin-top: 32px; }
   .s-section-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
   .s-metric-table { min-width: 1000px; }
+  .s-site-footer { margin-top: 34px; }
 }
 
 @media (max-width: 500px) {

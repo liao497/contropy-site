@@ -49,5 +49,6 @@ test("server-renders the metric-only real daily dashboard", async () => {
   assert.match(html, /风险压力指标/);
   assert.match(html, /行业行情覆盖已达标，但前瞻景气与估值输入覆盖不足70%/);
   assert.match(html, /未来催化/);
+  assert.match(html, /href="mailto:liao497@126\.com"[^>]*>liao497@126\.com<\/a>/);
   assert.doesNotMatch(html, /数据缺口|管理观察池|加入观察池|个股候选|DEMO|演示数据|方法论|归档路径/);
 });

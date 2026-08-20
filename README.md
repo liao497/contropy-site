@@ -1,109 +1,141 @@
-# 每日资讯博弈：宏观与行业投资看板
+# 每日资讯博弈
 
-聚焦市场环境、宏观利率、行业强度、重点行业前瞻、催化、风险和1—3个月波段行业机会。当前页面使用已验证的真实免费数据源；每个A股交易日北京时间07:30生成Markdown日报和JSON快照，缺失数据显式留空。
+面向A股宏观与行业研究的晨间投资看板，辅助1—3个月波段观察。看板整合A股、港股通及海外参考市场数据，重点展示市场环境、宏观利率、行业强度、跨市场情绪、风险压力和未来催化。
 
-指标口径见 [`docs/indicator-dictionary-v1.md`](docs/indicator-dictionary-v1.md)，存档契约见 [`docs/data-contract-v1.md`](docs/data-contract-v1.md)。
+**在线地址：[https://contropy.org](https://contropy.org)**
 
-## Prerequisites
+> 本项目用于个人研究和功能验证，不构成投资建议、收益承诺或自动交易信号。免费数据源可能存在延迟、限流、修订及授权范围限制。
+
+## 主要功能
+
+- **市场环境**：A股涨跌家数、涨跌停、成交额、风格强弱、集中度、波动、两融与ETF份额等。
+- **港股通与海外参考**：南向资金以及美国、日本、韩国、欧洲市场表现。
+- **宏观与利率**：国内经济运行、货币条件、利率及海外金融环境。
+- **行业跟踪**：行业RPS、成交占比、波动率、拥挤度和龙头集中度。
+- **风险与情绪**：A股、美股、亚洲和欧洲情绪，以及全球波动、信用和金融压力。
+- **未来催化**：未来7、30和90日的重要宏观、政策和行业事件。
+- **机会保护机制**：只有当前瞻、估值和行情覆盖达到门槛时才生成波段行业Top 3，避免为凑数输出低可信信号。
+- **长期归档**：每日保存JSON快照与Markdown日报，便于后续历史比较和复盘。
+
+## 每日更新方式
+
+网站更新不依赖个人电脑或Codex保持在线，全部由GitHub和Cloudflare在云端执行。
+
+```mermaid
+flowchart LR
+    A[交易日 07:30<br/>北京时间] --> B[GitHub Actions]
+    B --> C[Python采集免费数据]
+    C --> D[完整性校验与页面测试]
+    D --> E[保存JSON和Markdown归档]
+    E --> F[提交到main分支]
+    F --> G[Cloudflare自动构建]
+    G --> H[更新contropy.org]
+```
+
+- 定时任务每周一至周五07:30启动，并再次校验是否为A股交易日。
+- 07:30时A股尚未开盘，因此A股行情使用上一已完成交易日；海外和宏观指标使用当时已发布的最新有效值。
+- 数据或构建校验失败时不会发布，新网站继续显示上一份有效日报。
+- 自动化定义见 [`.github/workflows/daily-dashboard.yml`](.github/workflows/daily-dashboard.yml)。
+
+## 技术框架
+
+| 层级 | 技术 | 用途 |
+|---|---|---|
+| 页面 | React 19 + TypeScript | 看板组件与指标展示 |
+| Web框架 | vinext + Vite 8 | 服务端渲染、构建和资源打包 |
+| 托管 | Cloudflare Workers | 正式网站运行与全球分发 |
+| 采集 | Python 3.11 + AKShare + pandas + requests | 免费数据源采集、整理和计算 |
+| 自动化 | GitHub Actions | 交易日定时采集、校验、归档和提交 |
+| 数据存储 | JSON + Markdown + Git | 当前快照、不可覆盖的历史快照和日报 |
+
+当前版本不依赖常驻数据库；页面在构建时读取 [`data/current-snapshot.json`](data/current-snapshot.json)。每次新快照提交到`main`后，Cloudflare自动重新构建网站。
+
+## 本地运行
+
+环境要求：
 
 - Node.js `>=22.13.0`
+- Python `>=3.11`
 
-## Quick Start
+安装与启动：
 
 ```bash
-npm install
+git clone https://github.com/liao497/contropy-site.git
+cd contropy-site
+
+npm ci
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements-data.txt
+
 npm run dev
-npm run build
 ```
 
-归档一份已经校验的数据快照：
+开发服务器启动后，按终端显示的本地地址访问看板。
+
+## 数据采集与验证
+
+手动采集指定报告日：
 
 ```bash
-npm run archive:report -- path/to/snapshot.json .
+python scripts/collect-free-daily.py \
+  --date YYYY-MM-DD \
+  --output data/current-snapshot.json \
+  --revision local
 ```
 
-归档命令拒绝覆盖同日期文件；正式修订需在快照中使用新的 `run.revision_id`。
+验证当前快照与页面：
 
-This starter does not use `wrangler.jsonc`.
+```bash
+npm run validate:snapshot
+npm run lint
+npm test
+```
+
+归档已经校验的快照：
+
+```bash
+npm run archive:report -- data/current-snapshot.json .
+```
+
+归档文件默认不可覆盖。同一报告日需要修订时，应使用新的`run.revision_id`。
 
 ## 项目结构
 
-- `app/`：本地网页看板。
-- `docs/`：已确认的指标字典和数据契约。
-- `scripts/archive-report.mjs`：不可覆盖的日报/快照归档器。
-- `reports/daily/`：Markdown日报目标目录。
-- `data/snapshots/`：JSON快照目标目录。
-- `data/schema/`：快照JSON Schema。
-- `tests/`：页面渲染和归档行为测试。
-
-## Workspace Auth Headers
-
-Signed-in visitors receive both `oai-authenticated-user-id` and `oai-authenticated-user-email`. Private Sites require every visitor to sign in; public Sites may also have anonymous visitors, for whom neither header is present.
-
-The user ID is stable for the same user on the same Site and different across Sites. Email and name are intended for display or contact purposes.
-
-SIWC-authenticated workspace sites may also receive
-`oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty
-`name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by
-`oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const userId = requestHeaders.get("oai-authenticated-user-id");
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```text
+app/                         看板页面、组件与样式
+data/current-snapshot.json   网站当前展示的数据
+data/snapshots/              按年/月保存的历史JSON快照
+data/schema/                 快照JSON Schema
+reports/daily/               按年/月保存的Markdown日报
+scripts/                     数据采集、校验与归档脚本
+docs/                        指标字典、数据契约和数据源研究
+tests/                       页面渲染与归档测试
+worker/                      Cloudflare Worker入口
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+## 指标与数据源文档
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs
-optional or required ChatGPT sign-in:
+- [指标字典](docs/indicator-dictionary-v1.md)
+- [数据契约](docs/data-contract-v1.md)
+- [免费数据源矩阵](docs/free-source-matrix-v2.md)
+- [免费数据源验证记录](docs/free-source-validation-2026-08-19.md)
+- [Cloudflare与GitHub部署说明](docs/cloudflare-github-deployment.md)
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send
-  anonymous visitors through Sign in with ChatGPT.
-- Use `chatGPTSignInPath(returnTo)` and `chatGPTSignOutPath(returnTo)` for
-  browser links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in
-  or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because
-  they depend on per-request identity headers.
+## 部署
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the
-OAuth cookies, and identity header injection. Do not implement app routes for
-those reserved paths. Routes that do not import and call the helper remain
-anonymous-compatible.
+生产环境已经连接GitHub `main`分支。合并到`main`后，Cloudflare会自动执行构建并更新 [contropy.org](https://contropy.org)。如需使用本地Wrangler账户手动发布：
 
-SIWC establishes identity only; it does not prove workspace membership. Use the
-Sites hosting platform's access policy controls for workspace-wide restrictions,
-or enforce explicit server-side membership or allowlist checks.
+```bash
+npm run deploy
+```
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write
-actions tied to the current ChatGPT user. Leave public content anonymous.
+不要把Cloudflare令牌、第三方API Key或其他密钥提交到仓库。
 
-## Useful Commands
+## 联系方式
 
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+[liao497@126.com](mailto:liao497@126.com)
 
-## Learn More
+## 数据使用说明
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+“免费数据源”仅表示当前不收取接口调用费，不代表上游行情、指数或宏观数据可以不受限制地商用或再分发。公开部署、商业使用或自动交易前，应分别核验数据许可、指数版权、接口条款和时效性。
