@@ -1,5 +1,0 @@
-name = "contropy-site"
-compatibility_date = "2025-05-01"
-
-[assets]
-directory = "./"
