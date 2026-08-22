@@ -2,6 +2,15 @@ name: Daily market dashboard
 
 on:
   workflow_dispatch:
+    inputs:
+      report_date:
+        description: "报告日期（YYYY-MM-DD；留空使用北京时间当天）"
+        required: false
+        type: string
+      market_date:
+        description: "A股行情日期（YYYY-MM-DD；仅历史补跑时填写）"
+        required: false
+        type: string
   schedule:
     - cron: "30 7 * * 1-5"
       timezone: Asia/Shanghai
@@ -26,6 +35,7 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
+          cache-dependency-path: requirements-data.txt
 
       - uses: actions/setup-node@v4
         with:
@@ -39,20 +49,28 @@ jobs:
           npm ci
 
       - name: Collect the morning snapshot
+        env:
+          REQUESTED_REPORT_DATE: ${{ inputs.report_date }}
+          REQUESTED_MARKET_DATE: ${{ inputs.market_date }}
         run: |
-          report_date="$(TZ=Asia/Shanghai date +%F)"
-          python scripts/collect-free-daily.py \
-            --date "$report_date" \
-            --output data/current-snapshot.json \
-            --revision daily \
+          report_date="${REQUESTED_REPORT_DATE:-$(TZ=Asia/Shanghai date +%F)}"
+          echo "REPORT_DATE=$report_date" >> "$GITHUB_ENV"
+          collector_args=(
+            --date "$report_date"
+            --output data/current-snapshot.json
+            --revision daily
             --trading-days-only
+          )
+          if [ -n "$REQUESTED_MARKET_DATE" ]; then
+            collector_args+=(--market-date "$REQUESTED_MARKET_DATE")
+          fi
+          python scripts/collect-free-daily.py "${collector_args[@]}"
 
-      - name: Stop when today is not an A-share trading day
+      - name: Stop when the report date is not an A-share trading day
         id: trading_day
         run: |
-          report_date="$(TZ=Asia/Shanghai date +%F)"
           snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
-          if [ "$snapshot_date" = "$report_date" ]; then
+          if [ "$snapshot_date" = "$REPORT_DATE" ]; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             echo "publish=false" >> "$GITHUB_OUTPUT"
@@ -62,7 +80,7 @@ jobs:
         if: steps.trading_day.outputs.publish == 'true'
         run: |
           report_date="$(node -p "require('./data/current-snapshot.json').report_date")"
-          node scripts/validate-snapshot.mjs data/current-snapshot.json "$report_date"
+          node scripts/validate-snapshot.mjs data/current-snapshot.json "$REPORT_DATE"
           npm test
           year="${report_date%%-*}"
           month_day="${report_date#*-}"
