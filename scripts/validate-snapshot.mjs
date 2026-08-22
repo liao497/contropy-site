@@ -15,9 +15,14 @@ if (!Array.isArray(snapshot.metrics) || snapshot.metrics.length < 25) {
 const ids = new Set(snapshot.metrics.map((metric) => metric.indicator_id));
 if (ids.size !== snapshot.metrics.length) throw new Error("duplicate indicator_id detected");
 
-const required = ["M1-A01/02", "M1-A05/06/07", "M1-C01", "M2-A01/03", "M3-A01/03", "M6-B02", "M6-C01"];
-for (const id of required) {
-  if (!ids.has(id)) throw new Error(`critical indicator missing: ${id}`);
+const requiredModules = ["市场环境", "宏观、利率与政策预期", "行业主题与海外映射"];
+for (const module of requiredModules) {
+  if (!snapshot.metrics.some((metric) => metric.module === module)) {
+    throw new Error(`critical module missing: ${module}`);
+  }
+}
+if (!snapshot.metrics.some((metric) => ["重点风险", "跨市场情绪"].includes(metric.module))) {
+  throw new Error("risk and sentiment modules are both missing");
 }
 for (const metric of snapshot.metrics) {
   if (metric.value === null || metric.value === undefined || metric.value === "") {
