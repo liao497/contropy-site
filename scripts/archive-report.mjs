@@ -21,6 +21,14 @@ function list(items, render) {
   return items.length ? items.map(render).join("\n") : "- 无";
 }
 
+function commodityRows(items) {
+  return items.map((item) => `| ${cell(item.group)} | ${cell(item.name)} | ${cell(item.contract)} | ${cell(item.price)} ${cell(item.unit)} | ${cell(item.daily_change_pct)}% | ${cell(item.weekly_change_pct)}% | ${cell(item.period)} |`).join("\n") || "| — | — | — | — | — | — | — |";
+}
+
+function shippingRows(items) {
+  return items.map((item) => `| ${cell(item.route_name)} | ${cell(item.vessel_count)} | ${cell(item.tanker_count)} | ${cell(item.average_7d)} | ${cell(item.average_28d)} | ${cell(item.change_vs_28d_pct)}% | ${cell(item.period)} |`).join("\n") || "| — | — | — | — | — | — | — |";
+}
+
 function renderReport(snapshot) {
   const market = sectionMetrics(snapshot, "M1-");
   const macro = sectionMetrics(snapshot, "M2-");
@@ -30,6 +38,9 @@ function renderReport(snapshot) {
   const sentiment = sectionMetrics(snapshot, "M6-C");
   const vulnerability = snapshot.risks.filter((risk) => risk.risk_type === "vulnerability");
   const stress = snapshot.risks.filter((risk) => risk.risk_type === "stress");
+  const majorNews = snapshot.major_news ?? [];
+  const shipping = snapshot.shipping ?? [];
+  const commodities = snapshot.commodities ?? [];
   const table = (rows) => `| 指标 | 最新数据 | 上一日/期 | 同比情况 | 解读 |\n|---|---:|---:|---:|---|\n${metricRows(rows)}`;
 
   return `# ${snapshot.report_date} 晨间行业投资看板
@@ -39,6 +50,22 @@ function renderReport(snapshot) {
 ## 一句话结论
 
 ${snapshot.run.top_call ?? "无明确机会或风险解读。"}
+
+## 重大新闻
+
+${list(majorNews, (item) => `- **${cell(item.category)}｜${cell(item.impact_level)}** [${cell(item.headline)}](${cell(item.source_url)})｜${cell(item.published_at)}（${cell(item.time_basis)}）｜来源：${cell(item.source_name)}｜影响：${cell(item.market_impact)}`)}
+
+### 航运要道通行
+
+| 航道 | 当日船舶 | 其中油轮 | 近7日均值 | 近28日均值 | 较28日均值 | 数据日 |
+|---|---:|---:|---:|---:|---:|---:|
+${shippingRows(shipping)}
+
+## 主要大宗商品
+
+| 分类 | 品种 | 合约 | 收盘价 | 当日涨跌 | 近5日涨跌 | 数据日 |
+|---|---|---|---:|---:|---:|---:|
+${commodityRows(commodities)}
 
 ## 市场环境
 

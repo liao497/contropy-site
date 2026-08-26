@@ -35,3 +35,10 @@ test("rejects a snapshot when an entire core module is unavailable", async () =>
 
   await assert.rejects(validate(snapshot), /critical module missing: 行业主题与海外映射/);
 });
+
+test("rejects a snapshot when commodity coverage falls below the publication floor", async () => {
+  const snapshot = JSON.parse(await readFile(fixture, "utf8"));
+  snapshot.commodities = snapshot.commodities.slice(0, 9);
+
+  await assert.rejects(validate(snapshot), /publication minimum is 10/);
+});

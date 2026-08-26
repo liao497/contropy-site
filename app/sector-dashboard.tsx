@@ -38,6 +38,53 @@ type Event = {
   source: string;
 };
 
+type MajorNews = {
+  category: "政要发言" | "主要央行" | "地缘与能源";
+  headline: string;
+  summary: string | null;
+  published_at: string;
+  time_basis: string;
+  source_name: string;
+  source_url: string;
+  source_type: "official" | "media_monitoring";
+  impact_level: "high" | "medium" | "low";
+  tone: "danger" | "warning" | "neutral";
+  affected_assets: string;
+  market_impact: string;
+};
+
+type ShippingFlow = {
+  route_id: string;
+  route_name: string;
+  period: string;
+  vessel_count: number;
+  tanker_count: number;
+  previous_vessel_count: number;
+  average_7d: number;
+  average_28d: number;
+  change_vs_28d_pct: number;
+  interpretation_type: InterpretationType;
+  interpretation: string | null;
+  publisher: string;
+  canonical_url: string;
+};
+
+type CommodityQuote = {
+  group: string;
+  symbol: string;
+  name: string;
+  contract: string;
+  price: number;
+  unit: string;
+  daily_change_pct: number;
+  weekly_change_pct: number;
+  period: string;
+  signal: "surge" | "drop" | "neutral";
+  interpretation: string | null;
+  publisher: string;
+  canonical_url: string;
+};
+
 type Snapshot = {
   report_date: string;
   as_of: string;
@@ -46,6 +93,9 @@ type Snapshot = {
   opportunities: Array<{ rank: number; industry_name: string; adjusted_score: number; thesis: string }>;
   risks: Risk[];
   events: Event[];
+  major_news?: MajorNews[];
+  shipping?: ShippingFlow[];
+  commodities?: CommodityQuote[];
   data_gaps: Array<{ indicator_id: string; reason: string }>;
   run: { top_call: string; risk_level: string; coverage_note: string };
 };
@@ -131,6 +181,95 @@ function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("zh-CN", { timeZone: "Asia/Shanghai", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(value));
 }
 
+function formatNumber(value: number) {
+  return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(value);
+}
+
+function Change({ value }: { value: number }) {
+  const tone = value > 0 ? "up" : value < 0 ? "down" : "flat";
+  return <span className={`s-change s-change--${tone}`}>{value > 0 ? "+" : ""}{value.toFixed(2)}%</span>;
+}
+
+function MajorNewsSection({ news, shipping }: { news: MajorNews[]; shipping: ShippingFlow[] }) {
+  if (!news.length && !shipping.length) return null;
+  const impactLabels = { high: "高影响", medium: "需关注", low: "一般" };
+  return (
+    <section className="s-section s-news-section">
+      <div className="s-section-heading"><h2>重大新闻</h2><span>近36小时 · 新闻注明来源与时点</span></div>
+      <div className="s-news-layout">
+        <div className="s-news-list">
+          {news.map((item) => (
+            <article className={`s-news-item s-news-item--${item.tone}`} key={`${item.published_at}-${item.source_url}`}>
+              <div className="s-news-meta">
+                <span>{item.category}</span><em>{impactLabels[item.impact_level]}</em>
+                <time dateTime={item.published_at}>{formatDateTime(item.published_at)}</time>
+              </div>
+              <h3><a href={item.source_url} target="_blank" rel="noreferrer">{item.headline}</a></h3>
+              {item.summary ? <p>{item.summary}</p> : null}
+              <div className="s-news-take"><strong>影响</strong><span>{item.market_impact}</span></div>
+              <footer><span>{item.affected_assets}</span><a href={item.source_url} target="_blank" rel="noreferrer">{item.source_name} · {item.time_basis}</a></footer>
+            </article>
+          ))}
+        </div>
+        {shipping.length ? (
+          <aside className="s-shipping-panel" aria-label="航运要道通行情况">
+            <div className="s-shipping-title"><h3>航运要道</h3><span>每日船舶通行 · AIS</span></div>
+            {shipping.map((route) => (
+              <article className={`s-shipping-item s-shipping-item--${route.interpretation_type}`} key={route.route_id}>
+                <div><strong>{route.route_name}</strong><time>{route.period}</time></div>
+                <dl>
+                  <div><dt>当日通行</dt><dd>{route.vessel_count} 艘</dd></div>
+                  <div><dt>其中油轮</dt><dd>{route.tanker_count} 艘</dd></div>
+                  <div><dt>近7日均值</dt><dd>{route.average_7d} 艘</dd></div>
+                  <div><dt>较28日均值</dt><dd><Change value={route.change_vs_28d_pct} /></dd></div>
+                </dl>
+                {route.interpretation ? <p>{route.interpretation}</p> : null}
+                <a href={route.canonical_url} target="_blank" rel="noreferrer">{route.publisher}</a>
+              </article>
+            ))}
+          </aside>
+        ) : null}
+      </div>
+      <p className="s-news-note">政要社交平台原帖没有稳定免费接口；当前以官方发布为优先，并用公开新闻源监测可能影响市场的发言或帖子报道。</p>
+    </section>
+  );
+}
+
+function CommoditySection({ commodities }: { commodities: CommodityQuote[] }) {
+  if (!commodities.length) return null;
+  const groups = ["能源", "贵金属", "有色金属", "黑色金属", "新能源材料"];
+  return (
+    <section className="s-section s-commodity-section">
+      <div className="s-section-heading"><h2>主要大宗商品</h2><span>主力连续收盘 · 日涨跌 / 近5个交易日涨跌</span></div>
+      <div className="s-commodity-grid">
+        {groups.map((group) => {
+          const rows = commodities.filter((item) => item.group === group);
+          if (!rows.length) return null;
+          return (
+            <article className="s-commodity-group" key={group}>
+              <h3>{group}</h3>
+              <div className="s-commodity-table-wrap">
+                <table className="s-commodity-table">
+                  <thead><tr><th>品种</th><th>收盘价</th><th>当日</th><th>近一周</th></tr></thead>
+                  <tbody>{rows.map((item) => (
+                    <tr className={`s-commodity-row--${item.signal}`} key={item.symbol}>
+                      <th scope="row"><a href={item.canonical_url} target="_blank" rel="noreferrer">{item.name}</a><small>{item.symbol} · {item.period}</small></th>
+                      <td><strong>{formatNumber(item.price)}</strong><small>{item.unit}</small></td>
+                      <td><Change value={item.daily_change_pct} /></td>
+                      <td><Change value={item.weekly_change_pct} /></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+      <p className="s-commodity-note">来源：新浪财经主力连续合约（AKShare采集）。钨暂无成熟标准化期货；钼虽有海外现金结算合约，但免费历史行情未达到稳定发布门槛，暂不使用非同口径现货价格替代。</p>
+    </section>
+  );
+}
+
 export function SectorDashboard() {
   const domestic = snapshot.metrics.filter((item) => /^M1-[AB]/.test(item.indicator_id));
   const global = snapshot.metrics.filter((item) => item.indicator_id.startsWith("M1-C"));
@@ -141,6 +280,9 @@ export function SectorDashboard() {
   const coreIds = ["M1-A01/02", "M1-A03/04", "M1-A05/06/07", "M1-B01/02", "M2-A01/03"];
   const core = coreIds.map((id) => snapshot.metrics.find((item) => item.indicator_id === id)).filter((item): item is Metric => Boolean(item));
   const criticalRisks = snapshot.risks.filter((risk) => risk.tone === "danger" || risk.tone === "warning");
+  const majorNews = snapshot.major_news ?? [];
+  const shipping = snapshot.shipping ?? [];
+  const commodities = snapshot.commodities ?? [];
 
   return (
     <main className="sector-dashboard">
@@ -160,6 +302,10 @@ export function SectorDashboard() {
       <section className="s-core-grid" aria-label="核心指标">
         {core.map((item) => <MetricCard metric={item} key={item.indicator_id} />)}
       </section>
+
+      <MajorNewsSection news={majorNews} shipping={shipping} />
+
+      <CommoditySection commodities={commodities} />
 
       <section className="s-section s-sentiment-section">
         <div className="s-section-heading"><h2>跨市场情绪</h2><span>0 悲观 · 50 中性 · 100 乐观｜狂热为逆向风险</span></div>
