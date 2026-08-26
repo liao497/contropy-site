@@ -20,6 +20,9 @@ test("archives an immutable markdown report and JSON snapshot", async () => {
   const snapshot = JSON.parse(await readFile(path.join(output, "data/snapshots/2026/08/2026-08-19.json"), "utf8"));
   assert.match(report, /波段行业机会 Top 3/);
   assert.match(report, /全市场成交额/);
+  assert.match(report, /重大新闻/);
+  assert.match(report, /航运要道通行/);
+  assert.match(report, /主要大宗商品/);
   assert.equal(snapshot.schema_version, "snapshot-v1.0.0");
 
   const duplicate = spawnSync(process.execPath, [

@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local.morning-signal/snapshot-v1.schema.json",
-  "title": "晨星台每日快照 V1",
+  "title": "每日资讯博弈每日快照 V1",
   "type": "object",
   "required": ["schema_version", "indicator_version", "model_version", "report_date", "as_of", "timezone", "data_state", "metrics", "opportunities", "risks", "events", "data_gaps", "run"],
   "properties": {
@@ -50,6 +50,29 @@
     "opportunities": { "type": "array", "maxItems": 3 },
     "risks": { "type": "array" },
     "events": { "type": "array" },
+    "major_news": {
+      "type": "array",
+      "maxItems": 9,
+      "items": {
+        "type": "object",
+        "required": ["category", "headline", "published_at", "time_basis", "source_name", "source_url", "source_type", "impact_level", "tone", "affected_assets", "market_impact", "retrieved_at"]
+      }
+    },
+    "shipping": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["route_id", "route_name", "period", "vessel_count", "tanker_count", "average_7d", "average_28d", "change_vs_28d_pct", "publisher", "canonical_url", "retrieved_at"]
+      }
+    },
+    "commodities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["group", "symbol", "name", "contract", "price", "unit", "daily_change_pct", "weekly_change_pct", "period", "signal", "publisher", "canonical_url", "retrieved_at"]
+      }
+    },
     "data_gaps": { "type": "array" },
     "run": { "type": "object" }
   },

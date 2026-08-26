@@ -30,6 +30,9 @@ async function render() {
 test("server-renders the metric-only real daily dashboard", async () => {
   const snapshot = JSON.parse(await readFile(new URL("../data/current-snapshot.json", import.meta.url), "utf8"));
   const breadth = snapshot.metrics.find((metric) => metric.indicator_id === "M1-A01/02");
+  const sentimentMetrics = snapshot.metrics.filter((metric) => metric.indicator_id.startsWith("M6-C"));
+  const firstNews = snapshot.major_news?.[0];
+  const firstCommodity = snapshot.commodities?.[0];
 
   const response = await render();
   assert.equal(response.status, 200);
@@ -49,13 +52,27 @@ test("server-renders the metric-only real daily dashboard", async () => {
   assert.match(html, /重点提示/);
   assert.match(html, new RegExp(escapeRegExp(snapshot.run.risk_level)));
   assert.match(html, /波段行业机会 Top 3/);
+  assert.match(html, /重大新闻/);
+  assert.match(html, /航运要道/);
+  assert.match(html, /霍尔木兹海峡/);
+  assert.match(html, /主要大宗商品/);
+  assert.match(html, /当日/);
+  assert.match(html, /近一周/);
+  if (firstNews) {
+    assert.match(html, new RegExp(escapeRegExp(firstNews.source_name)));
+  }
+  if (firstCommodity) {
+    assert.match(html, new RegExp(escapeRegExp(firstCommodity.name)));
+    assert.match(html, new RegExp(escapeRegExp(firstCommodity.period)));
+  }
   assert.match(html, /指标明细/);
   assert.match(html, /最新数据/);
   assert.match(html, /上一日\/期/);
   assert.match(html, /同比情况/);
   assert.match(html, /跨市场情绪/);
-  assert.match(html, /A股情绪温度/);
-  assert.match(html, /欧洲市场情绪温度/);
+  for (const metric of sentimentMetrics) {
+    assert.match(html, new RegExp(escapeRegExp(metric.indicator_name)));
+  }
   assert.match(html, /狂热为逆向风险/);
   assert.match(html, /行业强度、成交与拥挤/);
   assert.match(html, /风险压力指标/);

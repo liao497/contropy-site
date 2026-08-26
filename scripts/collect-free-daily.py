@@ -4,15 +4,19 @@
 from __future__ import annotations
 
 import argparse
+from difflib import SequenceMatcher
 import io
 import json
 import math
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, time as datetime_time, timedelta, timezone
+from email.utils import parsedate_to_datetime
+from html import unescape
 from pathlib import Path
 from typing import Any, Callable
+from xml.etree import ElementTree
 from zoneinfo import ZoneInfo
 
 import akshare as ak
@@ -22,13 +26,69 @@ import requests
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv"
+GDELT_DOC = "https://api.gdeltproject.org/api/v2/doc/doc"
+PORTWATCH_CHOKEPOINTS = "https://services9.arcgis.com/weJ1QsnbMYJlCHdG/arcgis/rest/services/Daily_Chokepoints_Data/FeatureServer/0/query"
 _requests_get = requests.get
+
+NEWS_FEEDS = [
+    ("美联储", "https://www.federalreserve.gov/feeds/press_monetary.xml", "主要央行"),
+    ("欧洲央行", "https://www.ecb.europa.eu/rss/press.html", "主要央行"),
+    ("日本央行", "https://www.boj.or.jp/en/rss/whatsnew.xml", "主要央行"),
+    ("韩国央行", "https://www.bok.or.kr/eng/bbs/E0000627/news.rss?", "主要央行"),
+]
+
+NEWS_QUERIES = {
+    "政要发言": '("White House" OR "US president" OR "European Commission president" OR "Japan prime minister" OR "South Korea president") (tariff OR sanction OR market OR economy OR trade OR oil OR "posted on X" OR tweet)',
+    "主要央行": '("Federal Reserve" OR ECB OR "Bank of Japan" OR "Bank of Korea" OR "Bank of England") ("interest rate" OR hike OR cut OR "monetary policy")',
+    "地缘与能源": '("Strait of Hormuz" OR "Red Sea" OR "Bab el-Mandeb" OR "Suez Canal" OR "Middle East") (attack OR war OR shipping OR vessel OR tanker OR oil OR blockade OR closure)',
+}
+
+COMMODITY_SPECS = [
+    ("能源", "SC0", "上海原油", "元/桶", 1),
+    ("贵金属", "AU0", "黄金", "元/克", 2),
+    ("贵金属", "AG0", "白银", "元/千克", 0),
+    ("有色金属", "CU0", "铜", "元/吨", 0),
+    ("有色金属", "AL0", "铝", "元/吨", 0),
+    ("有色金属", "ZN0", "锌", "元/吨", 0),
+    ("有色金属", "NI0", "镍", "元/吨", 0),
+    ("有色金属", "SN0", "锡", "元/吨", 0),
+    ("黑色金属", "I0", "铁矿石", "元/吨", 1),
+    ("黑色金属", "RB0", "螺纹钢", "元/吨", 0),
+    ("黑色金属", "HC0", "热轧卷板", "元/吨", 0),
+    ("黑色金属", "J0", "焦炭", "元/吨", 1),
+    ("黑色金属", "JM0", "焦煤", "元/吨", 1),
+    ("新能源材料", "LC0", "碳酸锂", "元/吨", 0),
+    ("新能源材料", "SI0", "工业硅", "元/吨", 0),
+    ("新能源材料", "PS0", "多晶硅", "元/吨", 0),
+]
+
+CHOKEPOINT_SPECS = [
+    ("chokepoint6", "霍尔木兹海峡"),
+    ("chokepoint4", "曼德海峡"),
+    ("chokepoint1", "苏伊士运河"),
+]
 
 
 def _timed_get(*args: Any, **kwargs: Any) -> requests.Response:
     requested_timeout = kwargs.get("timeout", 12)
     kwargs["timeout"] = min(float(requested_timeout), 12)
     return _requests_get(*args, **kwargs)
+
+
+def _retry_get(*args: Any, attempts: int = 3, **kwargs: Any) -> requests.Response:
+    last_error: Exception | None = None
+    for attempt in range(attempts):
+        try:
+            response = _requests_get(*args, **kwargs)
+            if response.status_code < 500:
+                return response
+            last_error = requests.HTTPError(f"HTTP {response.status_code}")
+        except requests.RequestException as exc:
+            last_error = exc
+        if attempt + 1 < attempts:
+            time.sleep(1.5 * (attempt + 1))
+    assert last_error is not None
+    raise last_error
 
 
 # AKShare's public-source wrappers do not consistently set a timeout. Without
@@ -111,6 +171,386 @@ def safe_call(label: str, fn: Callable[[], Any], gaps: list[dict[str, str]]) -> 
     except Exception as exc:  # source failures must become visible gaps
         gaps.append({"indicator_id": label, "reason": f"免费源采集失败：{type(exc).__name__}: {exc}"})
         return None
+
+
+def strip_markup(value: Any, limit: int = 220) -> str:
+    text = unescape(re.sub(r"<[^>]+>", " ", str(value or "")))
+    text = re.sub(r"\s+", " ", text).strip()
+    return text if len(text) <= limit else f"{text[:limit - 1].rstrip()}…"
+
+
+def news_category(text: str) -> str | None:
+    lowered = text.lower()
+    if any(term in lowered for term in [
+        "霍尔木兹", "红海", "曼德海峡", "苏伊士", "中东", "伊朗", "以色列", "也门",
+        "hormuz", "red sea", "bab el-mandeb", "suez", "middle east", "iran", "israel", "yemen",
+        "油轮", "tanker", "航运", "shipping", "原油", "oil",
+    ]):
+        return "地缘与能源"
+    if any(term in lowered for term in [
+        "美联储", "欧洲央行", "日本央行", "韩国央行", "英国央行", "央行", "加息", "降息", "利率决议",
+        "federal reserve", "ecb", "bank of japan", "bank of korea", "bank of england", "interest rate",
+        "monetary policy", "rate hike", "rate cut",
+    ]):
+        return "主要央行"
+    if any(term in lowered for term in [
+        "美国总统", "白宫", "特朗普", "美国财长", "欧盟委员会主席", "法国总统", "德国总理", "英国首相",
+        "日本首相", "韩国总统", "white house", "trump", "president", "prime minister", "chancellor",
+        "tariff", "sanction", "关税", "制裁", "推特", "posted on x", "tweet",
+    ]):
+        return "政要发言"
+    return None
+
+
+def news_assessment(category: str, text: str) -> tuple[str, str, str, str]:
+    lowered = text.lower()
+    severe = any(term in lowered for term in [
+        "封锁", "关闭", "袭击", "开战", "战争", "导弹", "无人机", "紧急状态", "大幅加息", "全面制裁",
+        "blockade", "closure", "closed", "attack", "strike", "war", "missile", "drone", "emergency",
+    ])
+    market_moving = severe or any(term in lowered for term in [
+        "关税", "制裁", "加息", "降息", "利率决议", "tariff", "sanction", "rate hike", "rate cut",
+        "interest rate", "霍尔木兹", "hormuz", "red sea", "红海",
+    ])
+    if category == "地缘与能源":
+        assets = "原油 / 航运 / 全球风险资产"
+        take = "关注原油风险溢价、航运绕行与全球风险偏好是否同步变化。"
+    elif category == "主要央行":
+        assets = "全球利率 / 成长估值 / 汇率"
+        take = "关注政策路径是否改变实际利率和成长资产估值。"
+    else:
+        assets = "全球风险资产 / 出口链 / 汇率"
+        take = "关注关税、制裁或政策措辞是否形成可执行措施。"
+    if severe:
+        return "high", "danger", assets, take
+    if market_moving:
+        return "medium", "warning", assets, take
+    return "low", "neutral", assets, take
+
+
+def make_news_item(
+    category: str,
+    title: str,
+    summary: str | None,
+    published_at: datetime,
+    source_name: str,
+    source_url: str,
+    source_type: str,
+    time_basis: str,
+    retrieved_at: str,
+) -> dict[str, Any]:
+    title = strip_markup(title, 180)
+    summary = strip_markup(summary, 240) if summary else None
+    impact_level, tone, affected_assets, market_impact = news_assessment(category, f"{title} {summary or ''}")
+    return {
+        "category": category,
+        "headline": title,
+        "summary": summary,
+        "published_at": published_at.astimezone(SHANGHAI).isoformat(timespec="seconds"),
+        "time_basis": time_basis,
+        "source_name": source_name,
+        "source_url": source_url,
+        "source_type": source_type,
+        "impact_level": impact_level,
+        "tone": tone,
+        "affected_assets": affected_assets,
+        "market_impact": market_impact,
+        "retrieved_at": retrieved_at,
+    }
+
+
+def official_feed_news(
+    source_name: str,
+    feed_url: str,
+    category: str,
+    window_start: datetime,
+    window_end: datetime,
+    retrieved_at: str,
+) -> list[dict[str, Any]]:
+    response = _retry_get(feed_url, timeout=18, headers={"User-Agent": "contropy-market-dashboard/1.0"})
+    response.raise_for_status()
+    root = ElementTree.fromstring(response.content)
+    rows: list[dict[str, Any]] = []
+    policy_terms = [
+        "monetary", "interest", "rate", "policy", "minutes", "outlook", "inflation", "speech", "interview",
+        "利率", "金融政策", "通胀",
+    ]
+    for item in root.findall(".//item"):
+        title = strip_markup(item.findtext("title"), 180)
+        link = strip_markup(item.findtext("link"), 500)
+        published_text = strip_markup(item.findtext("pubDate"), 100)
+        if not title or not link or not published_text or not any(term in title.lower() for term in policy_terms):
+            continue
+        try:
+            published = parsedate_to_datetime(published_text)
+            if published.tzinfo is None:
+                published = published.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            continue
+        published_shanghai = published.astimezone(SHANGHAI)
+        if not window_start <= published_shanghai <= window_end:
+            continue
+        rows.append(make_news_item(
+            category, title, item.findtext("description"), published_shanghai,
+            source_name, link, "official", "官方发布时间", retrieved_at,
+        ))
+    return rows
+
+
+def gdelt_news(
+    category: str,
+    query: str,
+    window_start: datetime,
+    window_end: datetime,
+    retrieved_at: str,
+) -> list[dict[str, Any]]:
+    params = {
+        "query": query,
+        "mode": "artlist",
+        "maxrecords": 30,
+        "format": "json",
+        "startdatetime": window_start.astimezone(timezone.utc).strftime("%Y%m%d%H%M%S"),
+        "enddatetime": window_end.astimezone(timezone.utc).strftime("%Y%m%d%H%M%S"),
+        "sort": "HybridRel",
+    }
+    response: requests.Response | None = None
+    for attempt in range(2):
+        response = _requests_get(GDELT_DOC, params=params, timeout=22, headers={"User-Agent": "contropy-market-dashboard/1.0"})
+        if response.status_code != 429 or attempt == 1:
+            break
+        time.sleep(5)
+    assert response is not None
+    response.raise_for_status()
+    rows: list[dict[str, Any]] = []
+    for article in response.json().get("articles", []):
+        title = article.get("title")
+        url = article.get("url")
+        seen = article.get("seendate")
+        if not title or not url or not seen:
+            continue
+        try:
+            published = datetime.strptime(seen, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+        rows.append(make_news_item(
+            category, title, None, published, article.get("domain") or "GDELT新闻源", url,
+            "media_monitoring", "GDELT首次监测", retrieved_at,
+        ))
+    return rows
+
+
+def eastmoney_news(window_start: datetime, window_end: datetime, retrieved_at: str) -> list[dict[str, Any]]:
+    frame = ak.stock_info_global_em()
+    rows: list[dict[str, Any]] = []
+    for _, row in frame.iterrows():
+        title = strip_markup(row.get("标题"), 180)
+        summary = strip_markup(row.get("摘要"), 240)
+        category = news_category(f"{title} {summary}")
+        if category is None:
+            continue
+        try:
+            published = pd.Timestamp(row.get("发布时间")).to_pydatetime()
+            if published.tzinfo is None:
+                published = published.replace(tzinfo=SHANGHAI)
+            published = published.astimezone(SHANGHAI)
+        except (TypeError, ValueError):
+            continue
+        if not window_start <= published <= window_end:
+            continue
+        rows.append(make_news_item(
+            category, title, summary, published, "东方财富全球财经快讯", str(row.get("链接") or ""),
+            "media_monitoring", "媒体发布时间", retrieved_at,
+        ))
+    return rows
+
+
+def collect_major_news(report_day: date, retrieved_at: str, gaps: list[dict[str, str]]) -> list[dict[str, Any]]:
+    retrieved = datetime.fromisoformat(retrieved_at).astimezone(SHANGHAI)
+    window_end = (
+        retrieved
+        if retrieved.date() == report_day
+        else datetime.combine(report_day, datetime_time(7, 30), SHANGHAI)
+    )
+    window_start = window_end - timedelta(hours=36)
+    items: list[dict[str, Any]] = []
+    tasks: list[tuple[str, Callable[[], list[dict[str, Any]]]]] = []
+    for source_name, feed_url, category in NEWS_FEEDS:
+        tasks.append((f"M8-NEWS-{source_name}", lambda n=source_name, u=feed_url, c=category: official_feed_news(n, u, c, window_start, window_end, retrieved_at)))
+    tasks.append(("M8-NEWS-东方财富", lambda: eastmoney_news(window_start, window_end, retrieved_at)))
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(fn): label for label, fn in tasks}
+        for future in as_completed(futures):
+            try:
+                items.extend(future.result())
+            except Exception as exc:
+                gaps.append({"indicator_id": futures[future], "reason": f"免费源采集失败：{type(exc).__name__}: {exc}"})
+    # GDELT throttles concurrent DOC API requests. Query categories serially so
+    # one scheduled dashboard does not rate-limit its own news coverage.
+    for index, (category, query) in enumerate(NEWS_QUERIES.items()):
+        if index:
+            time.sleep(2)
+        try:
+            items.extend(gdelt_news(category, query, window_start, window_end, retrieved_at))
+        except Exception as exc:
+            gaps.append({"indicator_id": f"M8-GDELT-{category}", "reason": f"免费源采集失败：{type(exc).__name__}: {exc}"})
+
+    impact_rank = {"high": 3, "medium": 2, "low": 1}
+    trusted_domains = ["reuters", "apnews", "bloomberg", "ft.com", "wsj", "bbc", "dw.com", "asahi", "nikkei", "koreaherald", "upi.com"]
+
+    def source_rank(item: dict[str, Any]) -> int:
+        if item["source_type"] == "official":
+            return 3
+        source = item["source_name"].lower()
+        return 2 if source == "东方财富全球财经快讯" or any(domain in source for domain in trusted_domains) else 1
+
+    items.sort(key=lambda item: (impact_rank[item["impact_level"]], source_rank(item), item["published_at"]), reverse=True)
+    selected: list[dict[str, Any]] = []
+    seen: list[str] = []
+    category_counts: dict[str, int] = {}
+    for item in items:
+        key = re.sub(r"[^a-z0-9\u4e00-\u9fff]", "", item["headline"].lower())[:80]
+        is_duplicate = any(key == prior or SequenceMatcher(None, key, prior).ratio() >= .68 for prior in seen)
+        if not key or is_duplicate or category_counts.get(item["category"], 0) >= 4:
+            continue
+        seen.append(key)
+        category_counts[item["category"]] = category_counts.get(item["category"], 0) + 1
+        selected.append(item)
+        if len(selected) >= 9:
+            break
+    return selected
+
+
+def fetch_chokepoint(port_id: str, display_name: str, report_day: date, retrieved_at: str) -> dict[str, Any]:
+    response = _retry_get(PORTWATCH_CHOKEPOINTS, params={
+        "where": f"portid='{port_id}' AND date <= DATE '{report_day.isoformat()}'",
+        "outFields": "date,portid,portname,n_total,n_tanker,capacity",
+        "returnGeometry": "false",
+        "resultRecordCount": 40,
+        "orderByFields": "date DESC",
+        "f": "json",
+    }, timeout=20, headers={"User-Agent": "contropy-market-dashboard/1.0"})
+    response.raise_for_status()
+    rows = [feature["attributes"] for feature in response.json().get("features", [])]
+    if len(rows) < 8:
+        raise RuntimeError(f"{display_name}仅获得{len(rows)}日通行数据")
+    rows.sort(key=lambda row: row["date"], reverse=True)
+    latest = rows[0]
+    calls = int(latest["n_total"])
+    tanker_calls = int(latest["n_tanker"])
+    previous_calls = int(rows[1]["n_total"])
+    avg_7d = sum(int(row["n_total"]) for row in rows[:7]) / 7
+    avg_28d = sum(int(row["n_total"]) for row in rows[:28]) / min(28, len(rows))
+    versus_28d = (avg_7d / avg_28d - 1) * 100 if avg_28d else 0
+    if versus_28d <= -30:
+        interpretation_type = "risk"
+        interpretation = "近7日通行量较28日均值下降超过30%，航运扰动显著。"
+    elif versus_28d <= -15:
+        interpretation_type = "watch"
+        interpretation = "近7日通行量明显低于28日均值，需观察是否继续恶化。"
+    else:
+        interpretation_type = "none"
+        interpretation = None
+    return {
+        "route_id": port_id,
+        "route_name": display_name,
+        "period": str(latest["date"]),
+        "vessel_count": calls,
+        "tanker_count": tanker_calls,
+        "previous_vessel_count": previous_calls,
+        "average_7d": round(avg_7d, 1),
+        "average_28d": round(avg_28d, 1),
+        "change_vs_28d_pct": round(versus_28d, 1),
+        "interpretation_type": interpretation_type,
+        "interpretation": interpretation,
+        "publisher": "IMF PortWatch / UN Global Platform",
+        "canonical_url": f"https://data-download.imf.org/climatedata/portwatch-chokepoints-indicators.html?portid={port_id}",
+        "retrieved_at": retrieved_at,
+    }
+
+
+def collect_shipping(report_day: date, retrieved_at: str, gaps: list[dict[str, str]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {
+            executor.submit(fetch_chokepoint, port_id, name, report_day, retrieved_at): (port_id, name)
+            for port_id, name in CHOKEPOINT_SPECS
+        }
+        for future in as_completed(futures):
+            port_id, name = futures[future]
+            try:
+                rows.append(future.result())
+            except Exception as exc:
+                gaps.append({"indicator_id": f"M8-SHIPPING-{port_id}", "reason": f"免费源采集失败：{type(exc).__name__}: {exc}"})
+    order = {port_id: index for index, (port_id, _) in enumerate(CHOKEPOINT_SPECS)}
+    return sorted(rows, key=lambda row: order[row["route_id"]])
+
+
+def fetch_commodity(spec: tuple[str, str, str, str, int], market_day: date, retrieved_at: str) -> dict[str, Any]:
+    group, symbol, name, unit, decimals = spec
+    frame = ak.futures_main_sina(
+        symbol=symbol,
+        start_date=(market_day - timedelta(days=20)).strftime("%Y%m%d"),
+        end_date=(market_day + timedelta(days=1)).strftime("%Y%m%d"),
+    )
+    if frame is None or frame.empty:
+        raise RuntimeError(f"{symbol}无历史行情")
+    date_column = "日期" if "日期" in frame.columns else "date"
+    close_column = "收盘价" if "收盘价" in frame.columns else "close"
+    frame = frame.copy()
+    frame[date_column] = pd.to_datetime(frame[date_column]).dt.date
+    frame[close_column] = pd.to_numeric(frame[close_column], errors="coerce")
+    frame = frame[(frame[date_column] <= market_day) & frame[close_column].notna()].sort_values(date_column)
+    if len(frame) < 6:
+        raise RuntimeError(f"{symbol}仅获得{len(frame)}个有效交易日")
+    latest = frame.iloc[-1]
+    previous = frame.iloc[-2]
+    week_ago = frame.iloc[-6]
+    price = float(latest[close_column])
+    previous_price = float(previous[close_column])
+    week_price = float(week_ago[close_column])
+    daily_change = (price / previous_price - 1) * 100
+    weekly_change = (price / week_price - 1) * 100
+    if daily_change >= 3 or weekly_change >= 6:
+        signal = "surge"
+        interpretation = "涨幅显著，关注上游受益与下游成本压力。"
+    elif daily_change <= -3 or weekly_change <= -6:
+        signal = "drop"
+        interpretation = "跌幅显著，关注供需转弱风险及下游成本改善。"
+    else:
+        signal = "neutral"
+        interpretation = None
+    return {
+        "group": group,
+        "symbol": symbol,
+        "name": name,
+        "contract": f"{symbol} 主力连续",
+        "price": round(price, decimals),
+        "unit": unit,
+        "daily_change_pct": round(daily_change, 2),
+        "weekly_change_pct": round(weekly_change, 2),
+        "previous_close": round(previous_price, decimals),
+        "period": latest[date_column].isoformat(),
+        "previous_period": previous[date_column].isoformat(),
+        "signal": signal,
+        "interpretation": interpretation,
+        "publisher": "新浪财经（AKShare采集）",
+        "canonical_url": f"https://finance.sina.com.cn/futures/quotes/{symbol}.shtml",
+        "retrieved_at": retrieved_at,
+    }
+
+
+def collect_commodities(market_day: date, retrieved_at: str, gaps: list[dict[str, str]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(fetch_commodity, spec, market_day, retrieved_at): spec for spec in COMMODITY_SPECS}
+        for future in as_completed(futures):
+            spec = futures[future]
+            try:
+                rows.append(future.result())
+            except Exception as exc:
+                gaps.append({"indicator_id": f"M9-{spec[1]}", "reason": f"免费源采集失败：{type(exc).__name__}: {exc}"})
+    order = {spec[1]: index for index, spec in enumerate(COMMODITY_SPECS)}
+    return sorted(rows, key=lambda row: order[row["symbol"]])
 
 
 def market_activity(report_day: date, retrieved_at: str, metrics: list[dict[str, Any]], gaps: list[dict[str, str]]) -> None:
@@ -1137,6 +1577,9 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
     add_financial_stress(retrieved_at, global_frames, metrics, gaps)
     industry_rows = add_industry_metrics(market_day, retrieved_at, turnover, metrics, gaps)
     add_sentiment(market_day, retrieved_at, global_frames, metrics, gaps)
+    major_news = collect_major_news(report_day, retrieved_at, gaps)
+    shipping = collect_shipping(report_day, retrieved_at, gaps)
+    commodities = collect_commodities(market_day, retrieved_at, gaps)
     for item in metrics:
         item["revision_id"] = revision
 
@@ -1183,6 +1626,9 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
         "opportunities": [],
         "risks": risks,
         "events": make_events(report_day),
+        "major_news": major_news,
+        "shipping": shipping,
+        "commodities": commodities,
         "data_gaps": gaps,
         "run": {
             "run_id": f"free-source-test-{report_day.isoformat()}-{revision}",
@@ -1191,7 +1637,7 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
             "collector": "scripts/collect-free-daily.py",
             "top_call": "A股内部压力单组显著触发，PMI同步跌破50；欧洲信用利差处于三年极低分位，情绪一致乐观需防逆向风险；行业强度与拥挤度已覆盖，但前瞻景气不足，暂不输出波段Top 3。" if hot_sentiments else "A股内部压力单组显著触发，PMI同步跌破50；行业强度与拥挤度已覆盖，但前瞻景气不足，暂不输出波段Top 3。",
             "risk_level": "高风险观察",
-            "coverage_note": f"已发布{len(metrics)}项真实指标；行业历史覆盖{len(industry_rows)}类；缺失项显式留空。",
+            "coverage_note": f"已发布{len(metrics)}项市场指标、{len(major_news)}条重大新闻、{len(commodities)}项商品行情；行业历史覆盖{len(industry_rows)}类。",
         },
     }
 
