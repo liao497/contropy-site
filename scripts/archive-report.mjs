@@ -30,6 +30,7 @@ function shippingRows(items) {
 }
 
 function renderReport(snapshot) {
+  const reportSession = snapshot.run.revision_id === "close" ? "收盘" : "晨间";
   const market = sectionMetrics(snapshot, "M1-");
   const macro = sectionMetrics(snapshot, "M2-");
   const sectors = sectionMetrics(snapshot, "M3-");
@@ -43,7 +44,7 @@ function renderReport(snapshot) {
   const commodities = snapshot.commodities ?? [];
   const table = (rows) => `| 指标 | 最新数据 | 上一日/期 | 同比情况 | 解读 |\n|---|---:|---:|---:|---|\n${metricRows(rows)}`;
 
-  return `# ${snapshot.report_date} 晨间行业投资看板
+  return `# ${snapshot.report_date} ${reportSession}行业投资看板
 
 > 数据截至：${snapshot.as_of}｜状态：${snapshot.data_state}｜指标版本：${snapshot.indicator_version}｜模型版本：${snapshot.model_version}
 
