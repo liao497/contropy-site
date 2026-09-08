@@ -18,6 +18,8 @@ on:
       timezone: Asia/Shanghai
     - cron: "15 8 * * 1-5"
       timezone: Asia/Shanghai
+    - cron: "30 16 * * 1-5"
+      timezone: Asia/Shanghai
 
 permissions:
   contents: write
@@ -51,16 +53,23 @@ jobs:
             "5 7 * * 1-5") run_role=primary ;;
             "45 7 * * 1-5") run_role=backup ;;
             "15 8 * * 1-5") run_role=watchdog ;;
+            "30 16 * * 1-5") run_role=close ;;
           esac
-          if [ "$EVENT_NAME" = "schedule" ] && [ "$snapshot_date" = "$report_date" ]; then
+          revision_id=daily
+          if [ "$run_role" = "close" ]; then
+            revision_id=close
+          fi
+          if [ "$EVENT_NAME" = "schedule" ] && [ "$snapshot_date" = "$report_date" ] && [ "$run_role" != "close" ]; then
             should_run=false
           fi
           echo "REPORT_DATE=$report_date" >> "$GITHUB_ENV"
+          echo "REVISION_ID=$revision_id" >> "$GITHUB_ENV"
           echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
           echo "run_role=$run_role" >> "$GITHUB_OUTPUT"
           {
             echo "### Daily dashboard refresh"
             echo "- Role: $run_role"
+            echo "- Revision: $revision_id"
             echo "- Target date: $report_date"
             echo "- Existing snapshot: $snapshot_date"
             echo "- Refresh required: $should_run"
@@ -86,19 +95,22 @@ jobs:
           python -m pip install -r requirements-data.txt
           npm ci
 
-      - name: Collect the morning snapshot
+      - name: Collect the dashboard snapshot
         if: steps.plan.outputs.should_run == 'true'
         env:
           REQUESTED_MARKET_DATE: ${{ inputs.market_date }}
+          RUN_ROLE: ${{ steps.plan.outputs.run_role }}
         run: |
           collector_args=(
             --date "$REPORT_DATE"
             --output data/current-snapshot.json
-            --revision daily
+            --revision "$REVISION_ID"
             --trading-days-only
           )
           if [ -n "$REQUESTED_MARKET_DATE" ]; then
             collector_args+=(--market-date "$REQUESTED_MARKET_DATE")
+          elif [ "$RUN_ROLE" = "close" ]; then
+            collector_args+=(--market-date "$REPORT_DATE")
           fi
           python scripts/collect-free-daily.py "${collector_args[@]}"
 
@@ -140,7 +152,7 @@ jobs:
           year="${report_date%%-*}"
           month_day="${report_date#*-}"
           month="${month_day%%-*}"
-          report_path="reports/daily/$year/$month/$report_date.daily.md"
+          report_path="reports/daily/$year/$month/$report_date.$REVISION_ID.md"
           if [ ! -e "$report_path" ]; then
             npm run archive:report -- data/current-snapshot.json .
           fi
@@ -155,7 +167,7 @@ jobs:
             exit 0
           fi
           report_date="$(node -p "require('./data/current-snapshot.json').report_date")"
-          git commit -m "data: update dashboard for $report_date"
+          git commit -m "data: update dashboard for $report_date ($REVISION_ID)"
           git push
 
       - name: Resolve the stale-dashboard alert
