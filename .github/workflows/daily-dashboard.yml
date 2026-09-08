@@ -12,11 +12,16 @@ on:
         required: false
         type: string
   schedule:
-    - cron: "30 7 * * 1-5"
+    - cron: "5 7 * * 1-5"
+      timezone: Asia/Shanghai
+    - cron: "45 7 * * 1-5"
+      timezone: Asia/Shanghai
+    - cron: "15 8 * * 1-5"
       timezone: Asia/Shanghai
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: daily-market-dashboard
@@ -31,32 +36,63 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Plan the refresh
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          REQUESTED_REPORT_DATE: ${{ inputs.report_date }}
+        run: |
+          report_date="${REQUESTED_REPORT_DATE:-$(TZ=Asia/Shanghai date +%F)}"
+          snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
+          should_run=true
+          run_role=manual
+          case "$EVENT_SCHEDULE" in
+            "5 7 * * 1-5") run_role=primary ;;
+            "45 7 * * 1-5") run_role=backup ;;
+            "15 8 * * 1-5") run_role=watchdog ;;
+          esac
+          if [ "$EVENT_NAME" = "schedule" ] && [ "$snapshot_date" = "$report_date" ]; then
+            should_run=false
+          fi
+          echo "REPORT_DATE=$report_date" >> "$GITHUB_ENV"
+          echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
+          echo "run_role=$run_role" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Daily dashboard refresh"
+            echo "- Role: $run_role"
+            echo "- Target date: $report_date"
+            echo "- Existing snapshot: $snapshot_date"
+            echo "- Refresh required: $should_run"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/setup-python@v5
+        if: steps.plan.outputs.should_run == 'true'
         with:
           python-version: "3.11"
           cache: pip
           cache-dependency-path: requirements-data.txt
 
       - uses: actions/setup-node@v4
+        if: steps.plan.outputs.should_run == 'true'
         with:
           node-version: "22"
           cache: npm
 
       - name: Install dependencies
+        if: steps.plan.outputs.should_run == 'true'
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements-data.txt
           npm ci
 
       - name: Collect the morning snapshot
+        if: steps.plan.outputs.should_run == 'true'
         env:
-          REQUESTED_REPORT_DATE: ${{ inputs.report_date }}
           REQUESTED_MARKET_DATE: ${{ inputs.market_date }}
         run: |
-          report_date="${REQUESTED_REPORT_DATE:-$(TZ=Asia/Shanghai date +%F)}"
-          echo "REPORT_DATE=$report_date" >> "$GITHUB_ENV"
           collector_args=(
-            --date "$report_date"
+            --date "$REPORT_DATE"
             --output data/current-snapshot.json
             --revision daily
             --trading-days-only
@@ -68,6 +104,7 @@ jobs:
 
       - name: Stop when the report date is not an A-share trading day
         id: trading_day
+        if: steps.plan.outputs.should_run == 'true'
         run: |
           snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
           if [ "$snapshot_date" = "$REPORT_DATE" ]; then
@@ -75,6 +112,24 @@ jobs:
           else
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Raise a stale-dashboard alert
+        id: stale_alert
+        if: steps.plan.outputs.run_role == 'watchdog' && steps.trading_day.outputs.publish == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          alert_title="[自动告警] 看板未按时更新 $REPORT_DATE"
+          issue_number="$(gh issue list --state all --limit 100 --json number,title --jq ".[] | select(.title == \"$alert_title\") | .number" | head -n 1)"
+          if [ -z "$issue_number" ]; then
+            issue_url="$(gh issue create \
+              --title "$alert_title" \
+              --body "北京时间08:15检查时，网站数据仍未更新到 $REPORT_DATE。看板正在自动补跑；若恢复失败，本任务将保持失败状态，请检查运行日志。")"
+            issue_number="${issue_url##*/}"
+          fi
+          echo "issue_number=$issue_number" >> "$GITHUB_OUTPUT"
+          echo "::warning title=Dashboard stale::Snapshot was still stale at the 08:15 watchdog check."
 
       - name: Validate and archive
         if: steps.trading_day.outputs.publish == 'true'
@@ -102,3 +157,29 @@ jobs:
           report_date="$(node -p "require('./data/current-snapshot.json').report_date")"
           git commit -m "data: update dashboard for $report_date"
           git push
+
+      - name: Resolve the stale-dashboard alert
+        if: success() && steps.stale_alert.outputs.issue_number != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue comment "${{ steps.stale_alert.outputs.issue_number }}" \
+            --body "自动补跑已完成，$REPORT_DATE 数据已经提交，Cloudflare部署已触发。"
+          gh issue close "${{ steps.stale_alert.outputs.issue_number }}" --reason completed
+
+      - name: Alert when watchdog recovery fails
+        if: failure() && steps.plan.outputs.run_role == 'watchdog'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          alert_title="[自动告警] 看板未按时更新 $REPORT_DATE"
+          issue_number="$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$alert_title\") | .number" | head -n 1)"
+          if [ -z "$issue_number" ]; then
+            gh issue create \
+              --title "$alert_title" \
+              --body "08:15自动补跑失败。请检查本次GitHub Actions日志，并在修复后手动补跑 $REPORT_DATE。"
+          else
+            gh issue comment "$issue_number" --body "08:15自动补跑失败，请检查本次GitHub Actions日志。"
+          fi
