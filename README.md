@@ -26,7 +26,7 @@
 
 ```mermaid
 flowchart LR
-    A[交易日 07:05 主任务<br/>07:45 备份 · 08:15监控<br/>16:30 收盘刷新] --> B[GitHub Actions]
+    A[交易日 05:37起提前采集<br/>多次幂等重试 · 独立新鲜度守卫<br/>16:30 收盘刷新] --> B[GitHub Actions]
     B --> C[Python采集免费数据]
     C --> D[完整性校验与页面测试]
     D --> E[保存JSON和Markdown归档]
@@ -35,12 +35,12 @@ flowchart LR
     G --> H[更新contropy.org]
 ```
 
-- 定时任务每周一至周五北京时间07:05启动主任务，07:45进行幂等备份检查，08:15检查是否仍为旧日期并在需要时自动补跑。
-- 当天已经更新时，备份和监控任务立即跳过；08:15发现交易日数据仍旧时会建立GitHub告警，恢复提交成功后自动关闭。
-- 16:30强制执行收盘刷新，使用当天已收盘的A股及国内商品数据；晨间版与收盘版分别归档为`.daily`和`.close`文件。
-- 目标在07:30前提供晨报；主任务07:05采集时A股尚未开盘，因此A股及国内商品行情使用上一已完成交易日，海外、新闻、航运和宏观指标使用实际采集时已发布的最新有效值。
+- 为吸收GitHub托管调度曾出现的长时间排队，晨间任务从北京时间05:37开始，并在06:07、06:37、07:07进行幂等重试；任一版本成功后，其余任务立即跳过。
+- 独立新鲜度守卫在07:23、07:43、08:03复核晨报，在17:03、17:23复核收盘版；发现旧数据会自动补跑，最终守卫仍未恢复时建立GitHub告警，恢复后自动关闭。
+- 16:30执行收盘刷新，使用当天已收盘的A股及国内商品数据；晨间版与收盘版分别归档为`.daily`和`.close`文件。
+- 目标在07:30前提供晨报；A股及国内商品行情使用上一已完成交易日，海外、新闻、航运和宏观指标使用实际采集时已发布的最新有效值。
 - 数据或构建校验失败时不会发布，新网站继续显示上一份有效日报。
-- 自动化定义见 [`.github/workflows/daily-dashboard.yml`](.github/workflows/daily-dashboard.yml)。
+- 采集任务见 [`.github/workflows/daily-dashboard.yml`](.github/workflows/daily-dashboard.yml)，独立守卫见 [`.github/workflows/dashboard-freshness-guard.yml`](.github/workflows/dashboard-freshness-guard.yml)。
 
 ## 技术框架
 

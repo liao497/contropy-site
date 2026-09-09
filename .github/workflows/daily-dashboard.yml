@@ -11,15 +11,32 @@ on:
         description: "A股行情日期（YYYY-MM-DD；仅历史补跑时填写）"
         required: false
         type: string
+      edition:
+        description: "日报版本"
+        required: false
+        default: daily
+        type: choice
+        options:
+          - daily
+          - close
+      only_if_stale:
+        description: "仅在目标版本尚未发布时运行（供自动守卫调用）"
+        required: false
+        default: false
+        type: boolean
+      alert_on_recovery:
+        description: "恢复时创建并在成功后关闭告警（供最终守卫调用）"
+        required: false
+        default: false
+        type: boolean
   schedule:
-    - cron: "5 7 * * 1-5"
-      timezone: Asia/Shanghai
-    - cron: "45 7 * * 1-5"
-      timezone: Asia/Shanghai
-    - cron: "15 8 * * 1-5"
-      timezone: Asia/Shanghai
-    - cron: "30 16 * * 1-5"
-      timezone: Asia/Shanghai
+    # UTC schedules: Beijing time is UTC+8. Morning jobs start early to absorb
+    # GitHub-hosted scheduler latency while still publishing before 07:30.
+    - cron: "37 21 * * 0-4"
+    - cron: "7 22 * * 0-4"
+    - cron: "37 22 * * 0-4"
+    - cron: "7 23 * * 0-4"
+    - cron: "30 8 * * 1-5"
 
 permissions:
   contents: write
@@ -44,34 +61,49 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           REQUESTED_REPORT_DATE: ${{ inputs.report_date }}
+          REQUESTED_EDITION: ${{ inputs.edition }}
+          ONLY_IF_STALE: ${{ inputs.only_if_stale }}
+          ALERT_ON_RECOVERY: ${{ inputs.alert_on_recovery }}
         run: |
           report_date="${REQUESTED_REPORT_DATE:-$(TZ=Asia/Shanghai date +%F)}"
           snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
+          snapshot_revision="$(node -p "require('./data/current-snapshot.json').run.revision_id")"
           should_run=true
           run_role=manual
           case "$EVENT_SCHEDULE" in
-            "5 7 * * 1-5") run_role=primary ;;
-            "45 7 * * 1-5") run_role=backup ;;
-            "15 8 * * 1-5") run_role=watchdog ;;
-            "30 16 * * 1-5") run_role=close ;;
+            "37 21 * * 0-4") run_role=primary ;;
+            "7 22 * * 0-4"|"37 22 * * 0-4") run_role=backup ;;
+            "7 23 * * 0-4") run_role=watchdog ;;
+            "30 8 * * 1-5") run_role=close ;;
           esac
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REQUESTED_EDITION" = "close" ]; then
+            run_role=close
+          fi
           revision_id=daily
           if [ "$run_role" = "close" ]; then
             revision_id=close
           fi
-          if [ "$EVENT_NAME" = "schedule" ] && [ "$snapshot_date" = "$report_date" ] && [ "$run_role" != "close" ]; then
+          fresh=false
+          if [ "$snapshot_date" = "$report_date" ]; then
+            if [ "$revision_id" = "daily" ] || [ "$snapshot_revision" = "close" ]; then
+              fresh=true
+            fi
+          fi
+          if { [ "$EVENT_NAME" = "schedule" ] || [ "$ONLY_IF_STALE" = "true" ]; } && [ "$fresh" = "true" ]; then
             should_run=false
           fi
           echo "REPORT_DATE=$report_date" >> "$GITHUB_ENV"
           echo "REVISION_ID=$revision_id" >> "$GITHUB_ENV"
           echo "should_run=$should_run" >> "$GITHUB_OUTPUT"
           echo "run_role=$run_role" >> "$GITHUB_OUTPUT"
+          echo "alert_on_recovery=$ALERT_ON_RECOVERY" >> "$GITHUB_OUTPUT"
           {
             echo "### Daily dashboard refresh"
             echo "- Role: $run_role"
             echo "- Revision: $revision_id"
             echo "- Target date: $report_date"
             echo "- Existing snapshot: $snapshot_date"
+            echo "- Existing revision: $snapshot_revision"
             echo "- Refresh required: $should_run"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -127,21 +159,21 @@ jobs:
 
       - name: Raise a stale-dashboard alert
         id: stale_alert
-        if: steps.plan.outputs.run_role == 'watchdog' && steps.trading_day.outputs.publish == 'true'
+        if: steps.plan.outputs.alert_on_recovery == 'true' && steps.trading_day.outputs.publish == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          alert_title="[自动告警] 看板未按时更新 $REPORT_DATE"
+          alert_title="[自动告警] 看板未按时更新 $REPORT_DATE ($REVISION_ID)"
           issue_number="$(gh issue list --state all --limit 100 --json number,title --jq ".[] | select(.title == \"$alert_title\") | .number" | head -n 1)"
           if [ -z "$issue_number" ]; then
             issue_url="$(gh issue create \
               --title "$alert_title" \
-              --body "北京时间08:15检查时，网站数据仍未更新到 $REPORT_DATE。看板正在自动补跑；若恢复失败，本任务将保持失败状态，请检查运行日志。")"
+              --body "独立新鲜度守卫检查时，网站的 $REVISION_ID 版本仍未更新到 $REPORT_DATE。看板正在自动补跑；若恢复失败，本任务将保持失败状态，请检查运行日志。")"
             issue_number="${issue_url##*/}"
           fi
           echo "issue_number=$issue_number" >> "$GITHUB_OUTPUT"
-          echo "::warning title=Dashboard stale::Snapshot was still stale at the 08:15 watchdog check."
+          echo "::warning title=Dashboard stale::The $REVISION_ID snapshot required guarded recovery."
 
       - name: Validate and archive
         if: steps.trading_day.outputs.publish == 'true'
@@ -171,27 +203,34 @@ jobs:
           git push
 
       - name: Resolve the stale-dashboard alert
-        if: success() && steps.stale_alert.outputs.issue_number != ''
+        if: success() && steps.trading_day.outputs.publish == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh issue comment "${{ steps.stale_alert.outputs.issue_number }}" \
-            --body "自动补跑已完成，$REPORT_DATE 数据已经提交，Cloudflare部署已触发。"
-          gh issue close "${{ steps.stale_alert.outputs.issue_number }}" --reason completed
+          for alert_title in \
+            "[自动告警] 看板未按时更新 $REPORT_DATE" \
+            "[自动告警] 看板未按时更新 $REPORT_DATE ($REVISION_ID)"; do
+            issue_number="$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$alert_title\") | .number" | head -n 1)"
+            if [ -n "$issue_number" ]; then
+              gh issue comment "$issue_number" \
+                --body "自动补跑已完成，$REPORT_DATE 的 $REVISION_ID 版本已经提交，Cloudflare部署已触发。"
+              gh issue close "$issue_number" --reason completed
+            fi
+          done
 
       - name: Alert when watchdog recovery fails
-        if: failure() && steps.plan.outputs.run_role == 'watchdog'
+        if: failure() && steps.plan.outputs.alert_on_recovery == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          alert_title="[自动告警] 看板未按时更新 $REPORT_DATE"
+          alert_title="[自动告警] 看板未按时更新 $REPORT_DATE ($REVISION_ID)"
           issue_number="$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$alert_title\") | .number" | head -n 1)"
           if [ -z "$issue_number" ]; then
             gh issue create \
               --title "$alert_title" \
-              --body "08:15自动补跑失败。请检查本次GitHub Actions日志，并在修复后手动补跑 $REPORT_DATE。"
+              --body "$REVISION_ID 版本自动补跑失败。请检查本次GitHub Actions日志，并在修复后手动补跑 $REPORT_DATE。"
           else
-            gh issue comment "$issue_number" --body "08:15自动补跑失败，请检查本次GitHub Actions日志。"
+            gh issue comment "$issue_number" --body "$REVISION_ID 版本自动补跑失败，请检查本次GitHub Actions日志。"
           fi
