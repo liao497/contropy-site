@@ -1,0 +1,61 @@
+name: Dashboard freshness guard
+
+on:
+  workflow_dispatch:
+  schedule:
+    # UTC schedules: 07:23 / 07:43 / 08:03 and 17:03 / 17:23 Beijing time.
+    - cron: "23 23 * * 0-4"
+    - cron: "43 23 * * 0-4"
+    - cron: "3 0 * * 1-5"
+    - cron: "3 9 * * 1-5"
+    - cron: "23 9 * * 1-5"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: dashboard-freshness-guard
+  cancel-in-progress: false
+
+jobs:
+  verify-and-recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check freshness and dispatch recovery
+        env:
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          report_date="$(TZ=Asia/Shanghai date +%F)"
+          snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
+          snapshot_revision="$(node -p "require('./data/current-snapshot.json').run.revision_id")"
+          edition=daily
+          final_guard=false
+          case "$EVENT_SCHEDULE" in
+            "3 9 * * 1-5") edition=close ;;
+            "23 9 * * 1-5") edition=close; final_guard=true ;;
+            "3 0 * * 1-5") final_guard=true ;;
+          esac
+
+          fresh=false
+          if [ "$snapshot_date" = "$report_date" ]; then
+            if [ "$edition" = "daily" ] || [ "$snapshot_revision" = "close" ]; then
+              fresh=true
+            fi
+          fi
+          if [ "$fresh" = "true" ]; then
+            echo "$report_date $edition snapshot is current; no recovery needed."
+            exit 0
+          fi
+
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/daily-dashboard.yml/dispatches" \
+            -f ref="$GITHUB_REF_NAME" \
+            -f "inputs[edition]=$edition" \
+            -F "inputs[only_if_stale]=true" \
+            -F "inputs[alert_on_recovery]=$final_guard"
+          echo "Dispatched $edition recovery for $report_date."
