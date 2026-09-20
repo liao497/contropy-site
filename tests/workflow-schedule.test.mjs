@@ -17,7 +17,8 @@ test("daily workflow runs every calendar day with idempotent retries and a closi
   assert.match(workflow, /ONLY_IF_STALE/);
   assert.match(workflow, /ALERT_ON_RECOVERY/);
   assert.match(workflow, /snapshot_revision/);
-  assert.match(workflow, /collector_args\+=\(--market-date "\$REPORT_DATE"\)/);
+  assert.match(workflow, /collector_args\+=\(--market-date-if-trading\)/);
+  assert.doesNotMatch(workflow, /collector_args\+=\(--market-date "\$REPORT_DATE"\)/);
   assert.match(workflow, /report_date\.\$REVISION_ID\.md/);
   assert.match(workflow, /issues: write/);
   assert.match(workflow, /Raise a stale-dashboard alert/);
