@@ -32,11 +32,11 @@ on:
   schedule:
     # UTC schedules: Beijing time is UTC+8. Morning jobs start early to absorb
     # GitHub-hosted scheduler latency while still publishing before 07:30.
-    - cron: "37 21 * * 0-4"
-    - cron: "7 22 * * 0-4"
-    - cron: "37 22 * * 0-4"
-    - cron: "7 23 * * 0-4"
-    - cron: "30 8 * * 1-5"
+    - cron: "37 21 * * *"
+    - cron: "7 22 * * *"
+    - cron: "37 22 * * *"
+    - cron: "7 23 * * *"
+    - cron: "30 8 * * *"
 
 permissions:
   contents: write
@@ -71,10 +71,10 @@ jobs:
           should_run=true
           run_role=manual
           case "$EVENT_SCHEDULE" in
-            "37 21 * * 0-4") run_role=primary ;;
-            "7 22 * * 0-4"|"37 22 * * 0-4") run_role=backup ;;
-            "7 23 * * 0-4") run_role=watchdog ;;
-            "30 8 * * 1-5") run_role=close ;;
+            "37 21 * * *") run_role=primary ;;
+            "7 22 * * *"|"37 22 * * *") run_role=backup ;;
+            "7 23 * * *") run_role=watchdog ;;
+            "30 8 * * *") run_role=close ;;
           esac
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REQUESTED_EDITION" = "close" ]; then
             run_role=close
@@ -137,17 +137,16 @@ jobs:
             --date "$REPORT_DATE"
             --output data/current-snapshot.json
             --revision "$REVISION_ID"
-            --trading-days-only
           )
           if [ -n "$REQUESTED_MARKET_DATE" ]; then
             collector_args+=(--market-date "$REQUESTED_MARKET_DATE")
           elif [ "$RUN_ROLE" = "close" ]; then
-            collector_args+=(--market-date "$REPORT_DATE")
+            collector_args+=(--market-date-if-trading)
           fi
           python scripts/collect-free-daily.py "${collector_args[@]}"
 
-      - name: Stop when the report date is not an A-share trading day
-        id: trading_day
+      - name: Confirm the requested report was generated
+        id: report_ready
         if: steps.plan.outputs.should_run == 'true'
         run: |
           snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
@@ -159,7 +158,7 @@ jobs:
 
       - name: Raise a stale-dashboard alert
         id: stale_alert
-        if: steps.plan.outputs.alert_on_recovery == 'true' && steps.trading_day.outputs.publish == 'true'
+        if: steps.plan.outputs.alert_on_recovery == 'true' && steps.report_ready.outputs.publish == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
@@ -176,7 +175,7 @@ jobs:
           echo "::warning title=Dashboard stale::The $REVISION_ID snapshot required guarded recovery."
 
       - name: Validate and archive
-        if: steps.trading_day.outputs.publish == 'true'
+        if: steps.report_ready.outputs.publish == 'true'
         run: |
           report_date="$(node -p "require('./data/current-snapshot.json').report_date")"
           node scripts/validate-snapshot.mjs data/current-snapshot.json "$REPORT_DATE"
@@ -190,7 +189,7 @@ jobs:
           fi
 
       - name: Commit the verified snapshot
-        if: steps.trading_day.outputs.publish == 'true'
+        if: steps.report_ready.outputs.publish == 'true'
         run: |
           git config user.name "dashboard-bot"
           git config user.email "dashboard-bot@users.noreply.github.com"
@@ -203,7 +202,7 @@ jobs:
           git push
 
       - name: Resolve the stale-dashboard alert
-        if: success() && steps.trading_day.outputs.publish == 'true'
+        if: success() && steps.report_ready.outputs.publish == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}

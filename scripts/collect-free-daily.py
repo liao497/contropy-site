@@ -1648,13 +1648,19 @@ def main() -> None:
     parser.add_argument("--output", default="data/current-snapshot.json")
     parser.add_argument("--revision", default="r1")
     parser.add_argument("--market-date", help="已完成的A股交易日；默认按北京时间自动判断")
+    parser.add_argument("--market-date-if-trading", action="store_true", help="报告日为A股交易日时使用报告日，否则使用最近已完成交易日")
     parser.add_argument("--trading-days-only", action="store_true", help="报告日不是A股交易日时正常退出且不改写文件")
     args = parser.parse_args()
     report_day = date.fromisoformat(args.date)
     if args.trading_days_only and not is_a_share_trade_day(report_day):
         print(f"{report_day}: 非A股交易日，跳过更新")
         return
-    market_day = date.fromisoformat(args.market_date) if args.market_date else completed_market_day(report_day)
+    if args.market_date:
+        market_day = date.fromisoformat(args.market_date)
+    elif args.market_date_if_trading and is_a_share_trade_day(report_day):
+        market_day = report_day
+    else:
+        market_day = completed_market_day(report_day)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     snapshot = build_snapshot(report_day, args.revision, market_day)

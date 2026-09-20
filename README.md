@@ -26,7 +26,7 @@
 
 ```mermaid
 flowchart LR
-    A[交易日 05:37起提前采集<br/>多次幂等重试 · 独立新鲜度守卫<br/>16:30 收盘刷新] --> B[GitHub Actions]
+    A[每日 05:37起提前采集<br/>多次幂等重试 · 独立新鲜度守卫<br/>16:30 收盘刷新] --> B[GitHub Actions]
     B --> C[Python采集免费数据]
     C --> D[完整性校验与页面测试]
     D --> E[保存JSON和Markdown归档]
@@ -37,8 +37,8 @@ flowchart LR
 
 - 为吸收GitHub托管调度曾出现的长时间排队，晨间任务从北京时间05:37开始，并在06:07、06:37、07:07进行幂等重试；任一版本成功后，其余任务立即跳过。
 - 独立新鲜度守卫在07:23、07:43、08:03复核晨报，在17:03、17:23复核收盘版；发现旧数据会自动补跑，最终守卫仍未恢复时建立GitHub告警，恢复后自动关闭。
-- 16:30执行收盘刷新，使用当天已收盘的A股及国内商品数据；晨间版与收盘版分别归档为`.daily`和`.close`文件。
-- 目标在07:30前提供晨报；A股及国内商品行情使用上一已完成交易日，海外、新闻、航运和宏观指标使用实际采集时已发布的最新有效值。
+- 每个自然日16:30执行第二次刷新；交易日使用当天已收盘的A股及国内商品数据，周末和休市日沿用最近已完成交易日行情，并更新海外、新闻、航运和宏观数据。晨间版与下午版分别归档为`.daily`和`.close`文件。
+- 目标在每日07:30前提供晨报；A股及国内商品行情使用最近已完成交易日，海外、新闻、航运和宏观指标使用实际采集时已发布的最新有效值。
 - 数据或构建校验失败时不会发布，新网站继续显示上一份有效日报。
 - 采集任务见 [`.github/workflows/daily-dashboard.yml`](.github/workflows/daily-dashboard.yml)，独立守卫见 [`.github/workflows/dashboard-freshness-guard.yml`](.github/workflows/dashboard-freshness-guard.yml)。
 
@@ -50,7 +50,7 @@ flowchart LR
 | Web框架 | vinext + Vite 8 | 服务端渲染、构建和资源打包 |
 | 托管 | Cloudflare Workers | 正式网站运行与全球分发 |
 | 采集 | Python 3.11 + AKShare + pandas + requests | 免费数据源采集、整理和计算 |
-| 自动化 | GitHub Actions | 交易日定时采集、校验、归档和提交 |
+| 自动化 | GitHub Actions | 每个自然日定时采集、校验、归档和提交 |
 | 数据存储 | JSON + Markdown + Git | 当前快照、不可覆盖的历史快照和日报 |
 
 当前版本不依赖常驻数据库；页面在构建时读取 [`data/current-snapshot.json`](data/current-snapshot.json)。每次新快照提交到`main`后，Cloudflare自动重新构建网站。

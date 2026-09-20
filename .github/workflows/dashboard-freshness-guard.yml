@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
   schedule:
     # UTC schedules: 07:23 / 07:43 / 08:03 and 17:03 / 17:23 Beijing time.
-    - cron: "23 23 * * 0-4"
-    - cron: "43 23 * * 0-4"
-    - cron: "3 0 * * 1-5"
-    - cron: "3 9 * * 1-5"
-    - cron: "23 9 * * 1-5"
+    - cron: "23 23 * * *"
+    - cron: "43 23 * * *"
+    - cron: "3 0 * * *"
+    - cron: "3 9 * * *"
+    - cron: "23 9 * * *"
 
 permissions:
   actions: write
@@ -36,9 +36,9 @@ jobs:
           edition=daily
           final_guard=false
           case "$EVENT_SCHEDULE" in
-            "3 9 * * 1-5") edition=close ;;
-            "23 9 * * 1-5") edition=close; final_guard=true ;;
-            "3 0 * * 1-5") final_guard=true ;;
+            "3 9 * * *") edition=close ;;
+            "23 9 * * *") edition=close; final_guard=true ;;
+            "3 0 * * *") final_guard=true ;;
           esac
 
           fresh=false
