@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("daily workflow has early idempotent retries and a closing refresh", async () => {
+test("daily workflow runs every calendar day with idempotent retries and a closing refresh", async () => {
   const workflow = await readFile(new URL("../.github/workflows/daily-dashboard.yml", import.meta.url), "utf8");
 
-  for (const schedule of ["37 21 * * 0-4", "7 22 * * 0-4", "37 22 * * 0-4", "7 23 * * 0-4", "30 8 * * 1-5"]) {
+  for (const schedule of ["37 21 * * *", "7 22 * * *", "37 22 * * *", "7 23 * * *", "30 8 * * *"]) {
     assert.match(workflow, new RegExp(`cron: "${schedule.replaceAll("*", "\\*")}"`));
   }
+  assert.doesNotMatch(workflow, /--trading-days-only/);
   assert.match(workflow, /snapshot_date.*report_date/);
   assert.match(workflow, /should_run=false/);
   assert.match(workflow, /run_role=watchdog/);
@@ -24,10 +25,10 @@ test("daily workflow has early idempotent retries and a closing refresh", async 
   assert.match(workflow, /Resolve the stale-dashboard alert/);
 });
 
-test("an independent freshness guard dispatches idempotent recovery", async () => {
+test("an independent freshness guard checks every calendar day", async () => {
   const guard = await readFile(new URL("../.github/workflows/dashboard-freshness-guard.yml", import.meta.url), "utf8");
 
-  for (const schedule of ["23 23 * * 0-4", "43 23 * * 0-4", "3 0 * * 1-5", "3 9 * * 1-5", "23 9 * * 1-5"]) {
+  for (const schedule of ["23 23 * * *", "43 23 * * *", "3 0 * * *", "3 9 * * *", "23 9 * * *"]) {
     assert.match(guard, new RegExp(`cron: "${schedule.replaceAll("*", "\\*")}"`));
   }
   assert.match(guard, /actions: write/);
