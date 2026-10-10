@@ -80,3 +80,16 @@ test("server-renders the metric-only real daily dashboard", async () => {
   assert.match(html, /href="mailto:liao497@126\.com"[^>]*>liao497@126\.com<\/a>/);
   assert.doesNotMatch(html, /数据缺口|管理观察池|加入观察池|个股候选|DEMO|演示数据|方法论|归档路径/);
 });
+
+test("decision summary comes first and supporting modules use progressive disclosure", async () => {
+  const response = await render();
+  const html = await response.text();
+  const opportunity = html.indexOf("机会线索");
+  const risk = html.indexOf("风险雷达");
+  const details = html.indexOf("指标明细");
+  assert.ok(opportunity > 0 && risk > opportunity && details > risk);
+  assert.match(html, /待确认/);
+  assert.match(html, /估值.*景气/);
+  assert.doesNotMatch(html, /<details[^>]*\sopen(?:=|\s|>)/);
+  assert.match(html, /行情数据日/);
+});
