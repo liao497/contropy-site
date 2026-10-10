@@ -105,6 +105,18 @@ ${list(snapshot.opportunities, (item) => `### ${item.rank}. ${item.industry_name
 - 失效条件：${cell(item.invalidation_conditions)}
 - 数据质量：置信度${cell(item.confidence)}，覆盖率${cell(item.coverage)}，时效性${cell(item.freshness)}`)}
 
+## 行业行情线索（待确认）
+
+> 只使用行业价格、强度与成交筛选；估值和前瞻景气未经核验，不构成买入建议。
+
+${list(snapshot.sector_candidates ?? [], (item) => `### ${item.rank}. ${cell(item.industry_name)}｜${cell(item.opportunity_type)}｜${cell(item.status)}
+
+- 行情数据日：${cell(item.market_data_date)}
+- 证据：${(item.evidence ?? []).map(cell).join("；")}
+- 确认条件：${cell(item.confirmation_conditions)}
+- 失效条件：${cell(item.invalidation_conditions)}
+- 边界：${cell(item.caveat)}`)}
+
 ## 风险脆弱性
 
 ${list(vulnerability, (risk) => `- **${cell(risk.name)}**：${cell(risk.status)}${risk.interpretation ? `｜${cell(risk.interpretation)}` : ""}`)}

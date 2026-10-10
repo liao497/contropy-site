@@ -23,6 +23,8 @@ import akshare as ak
 import pandas as pd
 import requests
 
+from signal_engine import crowded_industries, screen_sector_candidates, shipping_risk, summarize_risks
+
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 FRED_CSV = "https://fred.stlouisfed.org/graph/fredgraph.csv"
@@ -558,7 +560,13 @@ def market_activity(report_day: date, retrieved_at: str, metrics: list[dict[str,
     if frame is None or frame.empty:
         return
     values = dict(zip(frame["item"], frame["value"], strict=False))
-    period = str(values.get("统计日期", report_day.isoformat()))
+    if not values.get("统计日期"):
+        gaps.append({"indicator_id": "M1-A01/04", "reason": "乐咕市场活动缺少统计日期，不能确认是否为目标交易日"})
+        return
+    period = str(values["统计日期"])
+    if period[:10] != report_day.isoformat():
+        gaps.append({"indicator_id": "M1-A01/04", "reason": f"乐咕市场活动最新为{period}，晚于目标交易日才可发布；不将旧值当今日值"})
+        return
     up, down = int(float(values["上涨"])), int(float(values["下跌"]))
     limit_up, limit_down = int(float(values["涨停"])), int(float(values["跌停"]))
     stress = down >= 4000 or limit_down >= 100 or down / max(up, 1) >= 5
@@ -1051,7 +1059,7 @@ def add_industry_metrics(
             name = futures[future]
             try:
                 frame = future.result()
-                if len(frame) >= 61:
+                if len(frame) >= 61 and frame.iloc[-1]["date"].date() == report_day:
                     histories[name] = frame
             except Exception:
                 continue
@@ -1064,10 +1072,16 @@ def add_industry_metrics(
         current_amount = float(frame.iloc[-1]["amount"])
         mean5 = float(pd.to_numeric(frame["amount"], errors="coerce").tail(5).mean())
         mean20 = float(pd.to_numeric(frame["amount"], errors="coerce").tail(20).mean())
+        closes = pd.to_numeric(frame["close"], errors="coerce")
+        latest_close = float(closes.iloc[-1])
+        mean_close20 = float(closes.tail(20).mean())
+        high_close20 = float(closes.tail(20).max())
         rows.append({
             "name": name, "ret5": trailing_return(frame, 5), "ret20": trailing_return(frame, 20), "ret60": trailing_return(frame, 60),
             "share": current_amount / latest_turnover_yuan * 100, "amount5x": current_amount / mean5, "amount20x": current_amount / mean20,
             "vol20": realized_volatility(frame), "atr14": atr_percent(frame), "dd20": max_drawdown(frame, 20), "dd60": max_drawdown(frame, 60),
+            "ma20_gap": (latest_close / mean_close20 - 1) * 100 if mean_close20 > 0 else None,
+            "from_high20": (latest_close / high_close20 - 1) * 100 if high_close20 > 0 else None,
             "amount": current_amount,
         })
     industry = pd.DataFrame(rows)
@@ -1105,6 +1119,7 @@ def add_industry_metrics(
         except Exception:
             continue
     industry["leader3"] = industry["name"].map(leader)
+    crowded_names = crowded_industries(industry.to_dict("records"))
 
     def top_text(column: str, count: int = 8, suffix: str = "") -> str:
         selected = industry.nlargest(count, column)
@@ -1137,8 +1152,9 @@ def add_industry_metrics(
         "M3-A10", "行业成交拥挤度", "行业主题与海外映射", "daily", top_text("crowding", 8), None,
         report_day.isoformat(), None, None, None, None, retrieved_at, "E3", "同花顺行业指数 / 沪深交易所成交额",
         "https://q.10jqka.com.cn/thshy/", "成交占比,成交额/20日均值", .70, len(industry)/len(names), 1.0,
-        "watch" if float(industry["crowding"].max()) >= 95 else "none", "顶部行业成交占比和放量程度同时处于横截面高位；本地历史尚短，暂不称历史极端。",
-        "55%成交占比横截面分位+45%成交额/20日均值横截面分位", available_at=iso_at(report_day, 17),
+        "watch" if crowded_names else "none",
+        f"{', '.join(crowded_names[:3])}成交占比与活跃度均处前10%，且成交额至少为20日均值1.8倍；仍非历史极端判断。" if crowded_names else None,
+        "55%成交占比横截面分位+45%成交额/20日均值横截面分位；观察阈值另需双分位>=90且成交/20日均值>=1.8", available_at=iso_at(report_day, 17),
     ))
     leader_valid = industry.dropna(subset=["leader3"])
     if len(leader_valid) >= len(industry) * .7:
@@ -1606,24 +1622,33 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
     risks = [
         {"risk_type": "vulnerability", "name": "宏观景气", "status": "触发" if pmi_risk else "未触发" if pmi else "数据缺失", "interpretation": pmi["interpretation"] if pmi and pmi["interpretation"] else f"PMI最新值：{pmi['value']}" if pmi else "PMI免费源不可用。", "tone": "danger" if pmi_risk else "positive" if pmi else "neutral"},
         {"risk_type": "vulnerability", "name": "外部实际利率", "status": "观察" if real_rate and real_rate["interpretation_type"] == "watch" else "未触发" if real_rate else "数据缺失", "interpretation": real_rate["interpretation"] if real_rate and real_rate["interpretation"] else f"最新值：{real_rate['value']}" if real_rate else "美债实际利率免费源不可用。", "tone": "warning" if real_rate and real_rate["interpretation_type"] == "watch" else "positive" if real_rate else "neutral"},
-        {"risk_type": "vulnerability", "name": "行业拥挤与估值", "status": "观察" if industry_crowding else "数据缺失", "interpretation": industry_crowding["interpretation"] if industry_crowding and industry_crowding["interpretation"] else "行业成交拥挤度已覆盖；历史估值分位仍待累积或授权源。" if industry_crowding else "行业行情覆盖不足，不能判定安全。", "tone": "warning" if industry_crowding and industry_crowding["interpretation_type"] == "watch" else "neutral"},
+        {"risk_type": "vulnerability", "name": "行业交易拥挤", "status": "观察" if industry_crowding and industry_crowding["interpretation_type"] == "watch" else "未触发" if industry_crowding else "数据缺失", "interpretation": industry_crowding["interpretation"] if industry_crowding and industry_crowding["interpretation"] else "已覆盖行业成交；未达到成交占比、活跃度和异常放量的联合阈值。" if industry_crowding else "行业行情覆盖不足，不能判定安全。", "tone": "warning" if industry_crowding and industry_crowding["interpretation_type"] == "watch" else "positive" if industry_crowding else "neutral"},
         {"risk_type": "vulnerability", "name": "跨市场情绪过热", "status": "触发" if hot_sentiments else "未触发", "interpretation": f"{sentiment_summary}；一致乐观属于逆向风险，不等于立即见顶。" if hot_sentiments else "已覆盖的区域情绪未进入狂热区。", "tone": "danger" if hot_sentiments else "positive"},
         {"risk_type": "stress", "name": "A股内部压力", "status": "显著触发" if internal_risk else "未触发" if breadth and limits else "数据缺失", "interpretation": f"涨跌家数{breadth['value']}，涨跌停{limits['value']}；尚缺连续日确认。" if breadth and limits else "A股内部压力指标覆盖不足。", "tone": "danger" if internal_risk else "positive" if breadth and limits else "neutral"},
         {"risk_type": "stress", "name": "全球波动", "status": "触发" if vix and vix["interpretation_type"] == "risk" else "观察" if vix and vix["interpretation_type"] == "watch" else "未触发" if vix else "数据缺失", "interpretation": vix["interpretation"] if vix and vix["interpretation"] else f"VIX最新{vix['value']}，低于压力阈值。" if vix else "VIX免费源不可用。", "tone": "danger" if vix and vix["interpretation_type"] == "risk" else "warning" if vix and vix["interpretation_type"] == "watch" else "positive" if vix else "neutral"},
         {"risk_type": "stress", "name": "信用与金融压力", "status": "触发" if credit_stress and credit_stress["interpretation_type"] == "risk" else "观察" if credit_stress and credit_stress["interpretation_type"] == "watch" else "未触发" if credit_stress else "数据缺失", "interpretation": credit_stress["interpretation"] if credit_stress and credit_stress["interpretation"] else f"最新值：{credit_stress['value']}" if credit_stress else "信用与金融压力数据不足。", "tone": "danger" if credit_stress and credit_stress["interpretation_type"] == "risk" else "warning" if credit_stress and credit_stress["interpretation_type"] == "watch" else "positive" if credit_stress else "neutral"},
         {"risk_type": "stress", "name": "跨资产共振", "status": "未确认", "interpretation": "已补充信用压力，但人民币、商品与全球股票的同日共振模型仍待本地历史累积。", "tone": "warning"},
     ]
+    measured_shipping_risk = shipping_risk(shipping, report_day.isoformat())
+    if measured_shipping_risk:
+        risks.append(measured_shipping_risk)
+
+    industry_metric = by_id.get("M3-A01/03")
+    industry_coverage = float(industry_metric["coverage"]) if industry_metric else 0.0
+    sector_candidates = screen_sector_candidates(industry_rows, market_day.isoformat(), industry_coverage)
+    risk_summary = summarize_risks(risks, sector_candidates)
 
     return {
         "schema_version": "snapshot-v1.0.0",
-        "indicator_version": "indicator-v1.0.0",
-        "model_version": "sector-swing-v1.0.0",
+        "indicator_version": "indicator-v1.1.0",
+        "model_version": "sector-swing-v1.1.0",
         "report_date": report_day.isoformat(),
         "as_of": retrieved_at,
         "timezone": "Asia/Shanghai",
         "data_state": "partial",
         "metrics": metrics,
         "opportunities": [],
+        "sector_candidates": sector_candidates,
         "risks": risks,
         "events": make_events(report_day),
         "major_news": major_news,
@@ -1635,8 +1660,8 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
             "revision_id": revision,
             "market_data_date": market_day.isoformat(),
             "collector": "scripts/collect-free-daily.py",
-            "top_call": "A股内部压力单组显著触发，PMI同步跌破50；欧洲信用利差处于三年极低分位，情绪一致乐观需防逆向风险；行业强度与拥挤度已覆盖，但前瞻景气不足，暂不输出波段Top 3。" if hot_sentiments else "A股内部压力单组显著触发，PMI同步跌破50；行业强度与拥挤度已覆盖，但前瞻景气不足，暂不输出波段Top 3。",
-            "risk_level": "高风险观察",
+            "top_call": risk_summary["top_call"],
+            "risk_level": risk_summary["risk_level"],
             "coverage_note": f"已发布{len(metrics)}项市场指标、{len(major_news)}条重大新闻、{len(commodities)}项商品行情；行业历史覆盖{len(industry_rows)}类。",
         },
     }

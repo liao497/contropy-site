@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from signal_engine import screen_sector_candidates, summarize_risks
+from signal_engine import crowded_industries, screen_sector_candidates, shipping_risk, summarize_risks
 
 
 def sector(name, **overrides):
@@ -48,6 +48,20 @@ class SectorScreenTests(unittest.TestCase):
 
 
 class RiskSummaryTests(unittest.TestCase):
+    def test_shipping_drop_is_visible_but_not_escalated_without_threshold(self):
+        route = {"route_name": "霍尔木兹海峡", "interpretation_type": "watch",
+                 "change_vs_28d_pct": -24.0, "period": "2026-10-09"}
+        result = shipping_risk([route])
+        self.assertEqual(result["status"], "观察")
+        self.assertEqual(result["tone"], "warning")
+        self.assertIn("-24.0%", result["interpretation"])
+        self.assertIsNone(shipping_risk([route], "2026-10-20"))
+
+    def test_relative_rank_alone_does_not_raise_crowding_alarm(self):
+        rows = [{"name": "普通活跃", "share_pct": 98, "attention_pct": 99, "amount20x": 1.2},
+                {"name": "异常放量", "share_pct": 94, "attention_pct": 97, "amount20x": 2.1}]
+        self.assertEqual(crowded_industries(rows), ["异常放量"])
+
     def test_does_not_claim_market_stress_when_only_macro_is_triggered(self):
         risks = [
             {"risk_type": "vulnerability", "name": "宏观景气", "status": "触发", "tone": "danger", "interpretation": "PMI低于50。"},
@@ -65,6 +79,20 @@ class RiskSummaryTests(unittest.TestCase):
             {"risk_type": "stress", "name": "全球波动", "status": "触发", "tone": "danger", "interpretation": "VIX急升。"},
         ]
         self.assertEqual(summarize_risks(risks, [sector("候选")])["risk_level"], "多组风险共振")
+
+    def test_correlated_global_stress_does_not_count_as_two_groups(self):
+        risks = [
+            {"risk_type": "stress", "name": "全球波动", "status": "触发", "tone": "danger", "interpretation": "VIX急升。"},
+            {"risk_type": "stress", "name": "信用与金融压力", "status": "触发", "tone": "danger", "interpretation": "信用利差走阔。"},
+        ]
+        self.assertEqual(summarize_risks(risks, [])["risk_level"], "单组风险观察")
+
+    def test_unconfirmed_watch_is_named_without_claiming_trigger(self):
+        risks = [{"risk_type": "stress", "name": "航运要道通行", "status": "观察", "tone": "warning",
+                  "interpretation": "霍尔木兹近7日通行量偏低。"}]
+        call = summarize_risks(risks, [])["top_call"]
+        self.assertIn("航运要道通行", call)
+        self.assertIn("尚未", call)
 
 
 if __name__ == "__main__":

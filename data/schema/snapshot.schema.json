@@ -48,6 +48,27 @@
       }
     },
     "opportunities": { "type": "array", "maxItems": 3 },
+    "sector_candidates": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["rank", "industry_name", "opportunity_type", "adjusted_score", "status", "market_data_date", "evidence", "confirmation_conditions", "invalidation_conditions", "caveat"],
+        "properties": {
+          "rank": { "type": "integer", "minimum": 1, "maximum": 3 },
+          "industry_name": { "type": "string", "minLength": 1 },
+          "opportunity_type": { "enum": ["强势延续观察", "超跌修复观察"] },
+          "adjusted_score": { "type": "number" },
+          "status": { "const": "待确认" },
+          "market_data_date": { "type": "string", "format": "date" },
+          "evidence": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+          "confirmation_conditions": { "type": "string" },
+          "invalidation_conditions": { "type": "string" },
+          "caveat": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
     "risks": { "type": "array" },
     "events": { "type": "array" },
     "major_news": {

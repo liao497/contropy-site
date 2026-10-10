@@ -42,3 +42,12 @@ test("rejects a snapshot when commodity coverage falls below the publication flo
 
   await assert.rejects(validate(snapshot), /publication minimum is 10/);
 });
+
+test("rejects sector leads or market activity labelled with the wrong trading date", async () => {
+  const snapshot = JSON.parse(await readFile(fixture, "utf8"));
+  snapshot.sector_candidates[0].market_data_date = "2026-10-08";
+  await assert.rejects(validate(snapshot), /sector candidate.*market_data_date/);
+  snapshot.sector_candidates[0].market_data_date = snapshot.run.market_data_date;
+  snapshot.metrics.find((metric) => metric.indicator_id === "M1-A01/02").period = "2026-10-08 15:00:00";
+  await assert.rejects(validate(snapshot), /market activity.*stale/);
+});

@@ -47,11 +47,11 @@ test("server-renders the metric-only real daily dashboard", async () => {
     assert.match(html, new RegExp(`s-market-up[^>]*>${escapeRegExp(rising)}<`));
     assert.match(html, new RegExp(`s-market-down[^>]*>${escapeRegExp(falling)}<`));
   }
-  assert.match(html, new RegExp(`<span>${escapeRegExp(snapshot.report_date)}</span>`));
+  assert.match(html, new RegExp(`日报 (?:<!-- -->)?${escapeRegExp(snapshot.report_date)}`));
   assert.match(html, /宏观与行业数据日报/);
   assert.match(html, /重点提示/);
-  assert.match(html, new RegExp(escapeRegExp(snapshot.run.risk_level)));
-  assert.match(html, /波段行业机会 Top 3/);
+  assert.match(html, /单组风险观察|多组风险共振|风险信号待确认|暂无共振风险|行情滞后 · 判断受限/);
+  assert.match(html, /机会线索/);
   assert.match(html, /重大新闻/);
   assert.match(html, /航运要道/);
   assert.match(html, /霍尔木兹海峡/);
@@ -76,7 +76,7 @@ test("server-renders the metric-only real daily dashboard", async () => {
   assert.match(html, /狂热为逆向风险/);
   assert.match(html, /行业强度、成交与拥挤/);
   assert.match(html, /风险压力指标/);
-  assert.match(html, /未来催化/);
+  if (snapshot.events.length > 2) assert.match(html, /未来催化/);
   assert.match(html, /href="mailto:liao497@126\.com"[^>]*>liao497@126\.com<\/a>/);
   assert.doesNotMatch(html, /数据缺口|管理观察池|加入观察池|个股候选|DEMO|演示数据|方法论|归档路径/);
 });

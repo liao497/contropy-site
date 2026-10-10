@@ -51,3 +51,24 @@ test("archives a separate closing report", async () => {
   const report = await readFile(path.join(output, "reports/daily/2026/08/2026-08-19.close.md"), "utf8");
   assert.match(report, /^# 2026-08-19 收盘行业投资看板/m);
 });
+
+test("archives observation leads separately from validated opportunities", async () => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "sector-leads-"));
+  const fixture = JSON.parse(await readFile(new URL("fixtures/demo-snapshot.json", import.meta.url), "utf8"));
+  fixture.sector_candidates = [{
+    rank: 1, industry_name: "测试行业", opportunity_type: "强势延续观察",
+    adjusted_score: 82, status: "待确认", market_data_date: "2026-08-18",
+    evidence: ["RPS20 88"], confirmation_conditions: "继续走强",
+    invalidation_conditions: "跌破均线", caveat: "估值未验证",
+  }];
+  const fixturePath = path.join(output, "lead-fixture.json");
+  await writeFile(fixturePath, `${JSON.stringify(fixture)}\n`);
+  const result = spawnSync(process.execPath, [
+    new URL("../scripts/archive-report.mjs", import.meta.url).pathname, fixturePath, output,
+  ], { cwd: projectRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  const report = await readFile(path.join(output, "reports/daily/2026/08/2026-08-19.md"), "utf8");
+  assert.match(report, /行业行情线索（待确认）/);
+  assert.match(report, /测试行业/);
+  assert.match(report, /估值未验证/);
+});

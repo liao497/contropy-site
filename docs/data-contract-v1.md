@@ -25,14 +25,15 @@ data/snapshots/YYYY/MM/YYYY-MM-DD.r2.json
 ```json
 {
   "schema_version": "snapshot-v1.0.0",
-  "indicator_version": "indicator-v1.0.0",
-  "model_version": "sector-swing-v1.0.0",
+  "indicator_version": "indicator-v1.1.0",
+  "model_version": "sector-swing-v1.1.0",
   "report_date": "2026-08-19",
   "as_of": "2026-08-19T07:30:00+08:00",
   "timezone": "Asia/Shanghai",
   "data_state": "demo|partial|verified",
   "metrics": [],
   "opportunities": [],
+  "sector_candidates": [],
   "risks": [],
   "events": [],
   "major_news": [],
@@ -80,6 +81,8 @@ model_version
 ```
 
 只允许保存通过质量门的前3名。没有3个合格行业时如实输出少于3个，不用低质量行业补齐。
+
+`sector_candidates`与正式`opportunities`严格分开：前者只用行业价格、相对强度、成交及波动指标筛选，均标记`status=待确认`，包含`evidence`、`confirmation_conditions`、`invalidation_conditions`、`market_data_date`和`caveat`。只有行业行情覆盖至少70%、数据日匹配目标交易日，且未触发过度拥挤或高ATR过滤时才可输出，最多3个。此名单不表示估值或前瞻景气已经验证，也不作为交易建议。
 
 ## 风险记录
 

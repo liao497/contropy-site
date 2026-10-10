@@ -91,13 +91,18 @@ type Snapshot = {
   data_state: "demo" | "partial" | "verified";
   metrics: Metric[];
   opportunities: Array<{ rank: number; industry_name: string; adjusted_score: number; thesis: string }>;
+  sector_candidates?: Array<{
+    rank: number; industry_name: string; opportunity_type: string; adjusted_score: number;
+    status: string; market_data_date: string; evidence: string[];
+    confirmation_conditions: string; invalidation_conditions: string; caveat: string;
+  }>;
   risks: Risk[];
   events: Event[];
   major_news?: MajorNews[];
   shipping?: ShippingFlow[];
   commodities?: CommodityQuote[];
   data_gaps: Array<{ indicator_id: string; reason: string }>;
-  run: { top_call: string; risk_level: string; coverage_note: string };
+  run: { top_call: string; risk_level: string; coverage_note: string; market_data_date?: string };
 };
 
 const snapshot = snapshotJson as Snapshot;
@@ -279,8 +284,15 @@ export function SectorDashboard() {
   const sentiment = snapshot.metrics.filter((item) => item.indicator_id.startsWith("M6-C"));
   const coreIds = ["M1-A01/02", "M1-A03/04", "M1-A05/06/07", "M1-B01/02", "M2-A01/03"];
   const core = coreIds.map((id) => snapshot.metrics.find((item) => item.indicator_id === id)).filter((item): item is Metric => Boolean(item));
-  const criticalRisks = snapshot.risks.filter((risk) => risk.tone === "danger" || risk.tone === "warning");
+  const triggeredRisks = snapshot.risks.filter((risk) => risk.tone === "danger" && ["触发", "显著触发"].includes(risk.status));
+  const watchingRisks = snapshot.risks.filter((risk) => risk.tone === "warning" && risk.status !== "未确认");
+  const criticalRisks = [...triggeredRisks, ...watchingRisks].slice(0, 3);
+  const riskLevel = snapshot.run.risk_level;
+  const sectorCandidates = snapshot.sector_candidates ?? [];
+  const marketDataDate = domestic.find((item) => /^\d{4}-\d{2}-\d{2}/.test(item.period))?.period.slice(0, 10) ?? snapshot.run.market_data_date ?? snapshot.report_date;
+  const marketDataIsStale = Boolean(snapshot.run.market_data_date && marketDataDate < snapshot.run.market_data_date);
   const majorNews = snapshot.major_news ?? [];
+  const headlineNews = majorNews.filter((item) => item.impact_level === "high").slice(0, 2);
   const shipping = snapshot.shipping ?? [];
   const commodities = snapshot.commodities ?? [];
 
@@ -289,70 +301,68 @@ export function SectorDashboard() {
       <header className="s-topbar">
         <div className="s-brand"><span>博</span><div><small>宏观与行业数据日报</small><h1>每日资讯博弈</h1></div></div>
         <div className="s-run-meta">
-          <span className="s-status"><Dot tone="warning" />{snapshot.data_state === "partial" ? "部分覆盖" : "已核验"}</span>
-          <span>{snapshot.report_date}</span><span>截至 {formatDateTime(snapshot.as_of)} 北京时间</span>
+          <span className="s-status"><Dot tone="warning" />{marketDataIsStale ? "行情滞后" : snapshot.data_state === "partial" ? "部分覆盖" : "已核验"}</span>
+          <span>日报 {snapshot.report_date}</span><span>行情数据日 {marketDataDate}</span>
         </div>
       </header>
 
-      <section className="s-alert" aria-label="今日重点提示">
-        <div className="s-alert-level"><span>重点提示</span><strong>{snapshot.run.risk_level}</strong></div>
-        <p>{snapshot.run.top_call}</p><small>{snapshot.run.coverage_note}</small>
+      <section className={`s-alert ${triggeredRisks.length ? "s-alert--danger" : "s-alert--calm"}`} aria-label="今日重点提示">
+        <div className="s-alert-level"><span>今日市场判断</span><strong>{marketDataIsStale ? "行情滞后 · 判断受限" : riskLevel}</strong></div>
+        <p>{marketDataIsStale ? `A股市场数据实际截至${marketDataDate}，晚于该日的风险与机会判断需等待同日数据更新。` : triggeredRisks.length ? triggeredRisks.slice(0, 2).map((item) => `${item.name}：${item.interpretation}`).join("；") : watchingRisks.length ? `${watchingRisks.slice(0, 3).map((item) => item.name).join("、")}处于观察区，尚未形成已确认风险共振。` : "已覆盖风险项暂无明确触发；观察后续变化。"}</p>
+        <small>行情数据日 {marketDataDate} · 截至 {formatDateTime(snapshot.as_of)} 北京时间</small>
+      </section>
+
+      <section className="s-decision-grid" aria-label="今日决策摘要">
+        <section className="s-decision-panel s-decision-panel--opportunity">
+          <div className="s-section-heading"><h2>机会线索</h2><span>1—3个月 · 最多3个行业</span></div>
+          {sectorCandidates.length ? <div className="s-candidate-list">{sectorCandidates.map((item) => (
+            <article className="s-candidate" key={item.industry_name}>
+              <div className="s-candidate-title"><span className="s-candidate-rank">0{item.rank}</span><h3>{item.industry_name}</h3><em>{item.opportunity_type}</em><b>{item.status}</b></div>
+              <p className="s-candidate-evidence">{item.evidence.join(" · ")}</p>
+              <div className="s-candidate-conditions"><span><strong>确认</strong>{item.confirmation_conditions}</span><span><strong>失效</strong>{item.invalidation_conditions}</span></div>
+            </article>
+          ))}</div> : <div className="s-no-signal"><strong>暂无符合筛选门槛的行业线索</strong><span>行业行情覆盖不足或强度、拥挤度与波动率未同时达标。</span></div>}
+          <p className="s-decision-note">来源：{industry.find((item) => item.indicator_id === "M3-A01/03")?.publisher ?? "行业行情免费源"} · {marketDataDate}。估值与前瞻景气未核验，不构成买入建议。</p>
+        </section>
+        <section className="s-decision-panel s-decision-panel--risk">
+          <div className="s-section-heading"><h2>风险雷达</h2><span>{triggeredRisks.length}项触发 · {watchingRisks.length}项观察</span></div>
+          {criticalRisks.length ? <div className="s-risk-list">{criticalRisks.map((risk) => (
+            <article className={`s-risk-item s-risk-item--${risk.tone}`} key={`${risk.risk_type}-${risk.name}`}>
+              <div><Dot tone={risk.tone} /><strong>{risk.name}</strong><em>{risk.status}</em></div><p>{risk.interpretation}</p>
+            </article>
+          ))}</div> : <div className="s-no-signal"><strong>暂无明确触发</strong><span>不代表市场无风险；留意缺失数据与新信号。</span></div>}
+          <p className="s-decision-note">仅把已触发信号计入风险等级；未确认的共振不作为已发生风险。</p>
+        </section>
       </section>
 
       <section className="s-core-grid" aria-label="核心指标">
         {core.map((item) => <MetricCard metric={item} key={item.indicator_id} />)}
       </section>
 
-      <MajorNewsSection news={majorNews} shipping={shipping} />
-
-      <CommoditySection commodities={commodities} />
-
-      <section className="s-section s-sentiment-section">
-        <div className="s-section-heading"><h2>跨市场情绪</h2><span>0 悲观 · 50 中性 · 100 乐观｜狂热为逆向风险</span></div>
-        <div className="s-sentiment-grid">{sentiment.map((item) => <SentimentCard metric={item} key={item.indicator_id} />)}</div>
-        <p className="s-sentiment-note">极度悲观仅提示潜在反转窗口，不构成买入信号；狂热或一致乐观时提高风险提示等级。</p>
-      </section>
-
-      <section className="s-section">
-        <div className="s-section-heading"><h2>重点风险</h2><span>{criticalRisks.length} 项需关注</span></div>
-        <div className="s-risk-grid">
-          {criticalRisks.map((risk) => (
-            <article className={`s-risk-item s-risk-item--${risk.tone}`} key={`${risk.risk_type}-${risk.name}`}>
-              <div><Dot tone={risk.tone} /><strong>{risk.name}</strong><em>{risk.status}</em></div><p>{risk.interpretation}</p>
-            </article>
-          ))}
+      {snapshot.events.length || headlineNews.length ? <section className="s-section s-next-section">
+        <div className="s-section-heading"><h2>接下来关注</h2><span>重要催化与异动</span></div>
+        <div className="s-next-grid">
+          {snapshot.events.slice(0, 2).map((event) => <article key={`${event.event_at}-${event.event_name}`}><span>事件 · {formatDateTime(event.event_at)}</span><strong>{event.event_name}</strong><small>{event.scenario}</small></article>)}
+          {headlineNews.map((item) => <article key={`${item.published_at}-${item.source_url}`}><span>新闻 · {formatDateTime(item.published_at)}</span><strong><a href={item.source_url} target="_blank" rel="noreferrer">{item.headline}</a></strong><small>{item.source_name} · {item.market_impact}</small></article>)}
         </div>
-      </section>
+      </section> : null}
 
-      <section className="s-section">
-        <div className="s-section-heading"><h2>波段行业机会 Top 3</h2><span>1—3个月</span></div>
-        {snapshot.opportunities.length ? (
-          <div className="s-opportunity-grid">
-            {snapshot.opportunities.map((item) => <article key={item.industry_name}><span>0{item.rank}</span><h3>{item.industry_name}</h3><strong>{item.adjusted_score}</strong><p>{item.thesis}</p></article>)}
-          </div>
-        ) : <div className="s-no-signal"><strong>本期不生成机会</strong><span>{snapshot.data_gaps.find((gap) => gap.indicator_id === "M7-*")?.reason ?? "机会输入未达到发布门槛，不以旧数据或代理值补齐。"}</span></div>}
+      <section className="s-section s-support-section">
+        <div className="s-section-heading"><h2>更多数据</h2><span>按需展开 · 完整来源与历史对比</span></div>
+        <details className="s-detail"><summary><strong>重大新闻与航运要道</strong><span>{majorNews.length}条新闻 · {shipping.length}条航道</span></summary><MajorNewsSection news={majorNews} shipping={shipping} /></details>
+        <details className="s-detail"><summary><strong>主要大宗商品</strong><span>{commodities.length}种期货</span></summary><CommoditySection commodities={commodities} /></details>
+        <details className="s-detail"><summary><strong>跨市场情绪</strong><span>狂热为逆向风险</span></summary><section className="s-section s-sentiment-section"><div className="s-sentiment-grid">{sentiment.map((item) => <SentimentCard metric={item} key={item.indicator_id} />)}</div><p className="s-sentiment-note">极度悲观仅提示潜在反转窗口，不构成买入信号；狂热或一致乐观时提高风险提示等级。</p></section></details>
+        {snapshot.events.length > 2 ? <details className="s-detail"><summary><strong>未来催化</strong><span>北京时间</span></summary><div className="s-event-grid s-event-grid--detail">{snapshot.events.slice(2).map((event) => <article key={`${event.event_at}-${event.event_name}`}><div><strong>{formatDateTime(event.event_at)}</strong><span>{event.window} · {event.impact}影响</span></div><h3>{event.event_name}</h3><p>{event.industries}</p><small>{event.scenario}</small></article>)}</div></details> : null}
       </section>
 
       <section className="s-section">
         <div className="s-section-heading"><h2>指标明细</h2><span>风险与观察项整行高亮</span></div>
-        <details className="s-detail" open><summary><strong>01 市场环境 · A股与港股通</strong><span>{domestic.length}项</span></summary><MetricTable rows={domestic} label="A股与港股通市场环境" /></details>
-        <details className="s-detail" open><summary><strong>02 海外参考 · 美国与亚洲</strong><span>{global.length}项</span></summary><MetricTable rows={global} label="海外市场参考" /></details>
-        <details className="s-detail" open><summary><strong>03 宏观、利率与政策预期</strong><span>{macro.length}项</span></summary><MetricTable rows={macro} label="宏观利率与政策预期" /></details>
-        <details className="s-detail" open><summary><strong>04 行业强度、成交与拥挤</strong><span>{industry.length}项</span></summary><MetricTable rows={industry} label="行业强度与拥挤" /></details>
-        <details className="s-detail" open><summary><strong>05 风险压力指标</strong><span>{riskMetrics.length}项</span></summary><MetricTable rows={riskMetrics} label="风险压力指标" /></details>
-        <details className="s-detail" open><summary><strong>06 跨市场情绪 · 逆向风险</strong><span>{sentiment.length}项</span></summary><MetricTable rows={sentiment} label="跨市场情绪" /></details>
-      </section>
-
-      <section className="s-section">
-        <div className="s-section-heading"><h2>未来催化</h2><span>北京时间</span></div>
-        <div className="s-event-grid">
-          {snapshot.events.map((event) => (
-            <article key={`${event.event_at}-${event.event_name}`}>
-              <div><strong>{formatDateTime(event.event_at)}</strong><span>{event.window} · {event.impact}影响</span></div>
-              <h3>{event.event_name}</h3><p>{event.industries}</p><small>{event.scenario}</small>
-            </article>
-          ))}
-        </div>
+        <details className="s-detail"><summary><strong>01 市场环境 · A股与港股通</strong><span>{domestic.length}项</span></summary><MetricTable rows={domestic} label="A股与港股通市场环境" /></details>
+        <details className="s-detail"><summary><strong>02 海外参考 · 美国与亚洲</strong><span>{global.length}项</span></summary><MetricTable rows={global} label="海外市场参考" /></details>
+        <details className="s-detail"><summary><strong>03 宏观、利率与政策预期</strong><span>{macro.length}项</span></summary><MetricTable rows={macro} label="宏观利率与政策预期" /></details>
+        <details className="s-detail"><summary><strong>04 行业强度、成交与拥挤</strong><span>{industry.length}项</span></summary><MetricTable rows={industry} label="行业强度与拥挤" /></details>
+        <details className="s-detail"><summary><strong>05 风险压力指标</strong><span>{riskMetrics.length}项</span></summary><MetricTable rows={riskMetrics} label="风险压力指标" /></details>
+        <details className="s-detail"><summary><strong>06 跨市场情绪 · 逆向风险</strong><span>{sentiment.length}项</span></summary><MetricTable rows={sentiment} label="跨市场情绪" /></details>
       </section>
 
       <footer className="s-site-footer">
