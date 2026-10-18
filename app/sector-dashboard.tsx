@@ -295,18 +295,20 @@ export function SectorDashboard() {
   const headlineNews = majorNews.filter((item) => item.impact_level === "high").slice(0, 2);
   const shipping = snapshot.shipping ?? [];
   const commodities = snapshot.commodities ?? [];
+  const statusTone: Tone = marketDataIsStale ? "danger" : snapshot.data_state === "partial" ? "warning" : "neutral";
+  const alertTone = triggeredRisks.length ? "danger" : watchingRisks.length ? "watch" : "calm";
 
   return (
     <main className="sector-dashboard">
       <header className="s-topbar">
         <div className="s-brand"><span>博</span><div><small>宏观与行业数据日报</small><h1>每日资讯博弈</h1></div></div>
         <div className="s-run-meta">
-          <span className="s-status"><Dot tone="warning" />{marketDataIsStale ? "行情滞后" : snapshot.data_state === "partial" ? "部分覆盖" : "已核验"}</span>
-          <span>日报 {snapshot.report_date}</span><span>行情数据日 {marketDataDate}</span>
+          <span className={`s-status s-status--${statusTone}`}><Dot tone={statusTone} />{marketDataIsStale ? "行情滞后" : snapshot.data_state === "partial" ? "部分覆盖" : "已核验"}</span>
+          <span className="s-run-date">日报 {snapshot.report_date}</span><span className="s-run-date">行情数据日 {marketDataDate}</span>
         </div>
       </header>
 
-      <section className={`s-alert ${triggeredRisks.length ? "s-alert--danger" : "s-alert--calm"}`} aria-label="今日重点提示">
+      <section className={`s-alert s-alert--${alertTone}`} aria-label="今日重点提示">
         <div className="s-alert-level"><span>今日市场判断</span><strong>{marketDataIsStale ? "行情滞后 · 判断受限" : riskLevel}</strong></div>
         <p>{marketDataIsStale ? `A股市场数据实际截至${marketDataDate}，晚于该日的风险与机会判断需等待同日数据更新。` : triggeredRisks.length ? triggeredRisks.slice(0, 2).map((item) => `${item.name}：${item.interpretation}`).join("；") : watchingRisks.length ? `${watchingRisks.slice(0, 3).map((item) => item.name).join("、")}处于观察区，尚未形成已确认风险共振。` : "已覆盖风险项暂无明确触发；观察后续变化。"}</p>
         <small>行情数据日 {marketDataDate} · 截至 {formatDateTime(snapshot.as_of)} 北京时间</small>

@@ -9,6 +9,7 @@ import test from "node:test";
 const run = promisify(execFile);
 const validator = new URL("../scripts/validate-snapshot.mjs", import.meta.url);
 const fixture = new URL("../data/current-snapshot.json", import.meta.url);
+const leadsFixture = new URL("../data/snapshots/2026/10/2026-10-10.r3.json", import.meta.url);
 
 async function validate(snapshot) {
   const directory = await mkdtemp(path.join(tmpdir(), "contropy-snapshot-"));
@@ -44,7 +45,7 @@ test("rejects a snapshot when commodity coverage falls below the publication flo
 });
 
 test("rejects sector leads or market activity labelled with the wrong trading date", async () => {
-  const snapshot = JSON.parse(await readFile(fixture, "utf8"));
+  const snapshot = JSON.parse(await readFile(leadsFixture, "utf8"));
   snapshot.sector_candidates[0].market_data_date = "2026-10-08";
   await assert.rejects(validate(snapshot), /sector candidate.*market_data_date/);
   snapshot.sector_candidates[0].market_data_date = snapshot.run.market_data_date;

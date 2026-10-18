@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #12201d;
-  --muted: #5d6965;
-  --paper: #f3f2ed;
-  --panel: #fffdf8;
-  --line: #d5d9d2;
-  --green: #0d6b58;
-  --amber: #b56a12;
-  --red: #b5433a;
-  --navy: #162827;
+  --ink: #16231f;
+  --muted: #52615b;
+  --paper: #f4f6f4;
+  --panel: #ffffff;
+  --line: #d8dfda;
+  --green: #08705b;
+  --amber: #986007;
+  --red: #b23d36;
+  --navy: #172c2b;
   --font-ui: "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", "Helvetica Neue", Arial, system-ui, sans-serif;
   --font-display: "Avenir Next", "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-numeric: "SF Pro Display", "DIN Alternate", "Roboto Condensed", "Helvetica Neue", Arial, sans-serif;
@@ -20,7 +20,7 @@
 html { background: var(--paper); scroll-behavior: smooth; }
 body {
   margin: 0;
-  background: radial-gradient(circle at 82% 1%, rgba(13, 107, 88, .09), transparent 24rem), var(--paper);
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--font-ui);
   font-size: 14px;

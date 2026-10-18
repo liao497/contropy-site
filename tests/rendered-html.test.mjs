@@ -50,7 +50,7 @@ test("server-renders the metric-only real daily dashboard", async () => {
   assert.match(html, new RegExp(`日报 (?:<!-- -->)?${escapeRegExp(snapshot.report_date)}`));
   assert.match(html, /宏观与行业数据日报/);
   assert.match(html, /重点提示/);
-  assert.match(html, /单组风险观察|多组风险共振|风险信号待确认|暂无共振风险|行情滞后 · 判断受限/);
+  assert.match(html, new RegExp(`${escapeRegExp(snapshot.run.risk_level)}|行情滞后 · 判断受限`));
   assert.match(html, /机会线索/);
   assert.match(html, /重大新闻/);
   assert.match(html, /航运要道/);
@@ -82,13 +82,14 @@ test("server-renders the metric-only real daily dashboard", async () => {
 });
 
 test("decision summary comes first and supporting modules use progressive disclosure", async () => {
+  const snapshot = JSON.parse(await readFile(new URL("../data/current-snapshot.json", import.meta.url), "utf8"));
   const response = await render();
   const html = await response.text();
   const opportunity = html.indexOf("机会线索");
   const risk = html.indexOf("风险雷达");
   const details = html.indexOf("指标明细");
   assert.ok(opportunity > 0 && risk > opportunity && details > risk);
-  assert.match(html, /待确认/);
+  assert.match(html, snapshot.sector_candidates?.length ? /待确认/ : /暂无符合筛选门槛的行业线索/);
   assert.match(html, /估值.*景气/);
   assert.doesNotMatch(html, /<details[^>]*\sopen(?:=|\s|>)/);
   assert.match(html, /行情数据日/);

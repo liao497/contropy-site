@@ -46,6 +46,8 @@ flowchart LR
 
 ## 技术框架
 
+界面颜色、数字排版、信息层级、组件状态和移动端规则统一记录在 [`DESIGN.md`](DESIGN.md)。该文件沿用 [awesome-design-md](https://github.com/VoltAgent/awesome-design-md) 的设计规范组织方式，并针对 A 股红涨绿跌及投资数据可追溯性制定了本项目自己的规则。
+
 | 层级 | 技术 | 用途 |
 |---|---|---|
 | 页面 | React 19 + TypeScript | 看板组件与指标展示 |
