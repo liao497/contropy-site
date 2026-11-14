@@ -44,6 +44,16 @@ test("rejects a snapshot when commodity coverage falls below the publication flo
   await assert.rejects(validate(snapshot), /publication minimum is 10/);
 });
 
+test("allows recorded shipping source outages without blocking the other verified modules", async () => {
+  const snapshot = JSON.parse(await readFile(fixture, "utf8"));
+  const routeIds = snapshot.shipping.map((item) => item.route_id);
+  snapshot.shipping = [];
+  snapshot.data_gaps.push(...routeIds.map((routeId) => ({ indicator_id: `M8-SHIPPING-${routeId}`, reason: "免费源采集失败" })));
+  await validate(snapshot);
+  snapshot.data_gaps = snapshot.data_gaps.filter((item) => item.indicator_id !== `M8-SHIPPING-${routeIds[0]}`);
+  await assert.rejects(validate(snapshot), /shipping routes/);
+});
+
 test("rejects sector leads or market activity labelled with the wrong trading date", async () => {
   const snapshot = JSON.parse(await readFile(leadsFixture, "utf8"));
   snapshot.sector_candidates[0].market_data_date = "2026-10-08";
