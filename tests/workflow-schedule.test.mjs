@@ -14,6 +14,8 @@ test("daily workflow runs every calendar day with idempotent retries and a closi
   assert.match(workflow, /run_role=watchdog/);
   assert.match(workflow, /run_role=close/);
   assert.match(workflow, /revision_id=close/);
+  assert.match(workflow, /REQUESTED_REVISION_ID/);
+  assert.match(workflow, /revision_id="\$REQUESTED_REVISION_ID"/);
   assert.match(workflow, /ONLY_IF_STALE/);
   assert.match(workflow, /ALERT_ON_RECOVERY/);
   assert.match(workflow, /snapshot_revision/);
