@@ -68,7 +68,12 @@ if (snapshot.sector_candidates !== undefined) {
     }
   }
 }
-if (snapshot.shipping.length < 2) throw new Error(`only ${snapshot.shipping.length} shipping routes; publication minimum is 2`);
+if (snapshot.shipping.length < 2) {
+  const reported = new Set(snapshot.shipping.map((item) => item.route_id));
+  const missing = new Set(snapshot.data_gaps.filter((item) => item.indicator_id?.startsWith("M8-SHIPPING-")).map((item) => item.indicator_id.slice("M8-SHIPPING-".length)));
+  const accounted = ["chokepoint6", "chokepoint4", "chokepoint1"].every((id) => reported.has(id) || missing.has(id));
+  if (!accounted) throw new Error(`only ${snapshot.shipping.length} shipping routes; unrecorded source outage`);
+}
 if (snapshot.commodities.length < 10) throw new Error(`only ${snapshot.commodities.length} commodities; publication minimum is 10`);
 for (const item of snapshot.major_news) {
   if (!item.headline || !item.published_at || !item.source_name || !item.source_url) {
