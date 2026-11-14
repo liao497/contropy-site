@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from capital_flow import compute_etf_share_flow, rank_sector_activity
+from capital_flow import choose_cached_market_metrics, compute_etf_share_flow, parse_cached_turnover, rank_sector_activity
 
 
 class EtfShareFlowTests(unittest.TestCase):
@@ -58,6 +58,24 @@ class SectorActivityTests(unittest.TestCase):
 
     def test_skips_rows_without_comparable_previous_share(self):
         self.assertEqual(rank_sector_activity([{"name": "未知", "share": 2.0, "amount20x": 1.2}]), {"increasing": [], "decreasing": []})
+
+
+class ArchivedMarketReuseTests(unittest.TestCase):
+    def test_reuses_only_same_market_day_and_preserves_original_record(self):
+        old_metric = {"indicator_id": "M1-A17/18", "period": "2026-11-13", "value": "22,331亿份", "retrieved_at": "2026-11-14T08:00:00+08:00"}
+        snapshots = [
+            {"run": {"market_data_date": "2026-11-12"}, "metrics": [{**old_metric, "value": "wrong"}]},
+            {"run": {"market_data_date": "2026-11-13"}, "metrics": [old_metric]},
+        ]
+        selected = choose_cached_market_metrics(snapshots, "2026-11-13", ["M1-A17/18"])
+        self.assertEqual(selected["M1-A17/18"], old_metric)
+        self.assertEqual(selected["M1-A17/18"]["retrieved_at"], "2026-11-14T08:00:00+08:00")
+        self.assertEqual(choose_cached_market_metrics(snapshots, "2026-11-16", ["M1-A17/18"]), {})
+
+    def test_parses_two_exchange_turnover_periods_for_comparable_sector_shares(self):
+        metric = {"period": "2026-11-13", "value": "16,569；5日1.00×；20日0.99×", "previous_period": "2026-11-12", "previous_value": "19,339亿元"}
+        self.assertEqual(parse_cached_turnover(metric), [("2026-11-13", 16569.0), ("2026-11-12", 19339.0)])
+        self.assertEqual(parse_cached_turnover({**metric, "previous_value": None}), [])
 
 
 if __name__ == "__main__":
