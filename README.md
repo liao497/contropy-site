@@ -43,6 +43,7 @@ flowchart LR
 - 每个自然日16:30执行第二次刷新；交易日使用当天已收盘的A股及国内商品数据，周末和休市日沿用最近已完成交易日行情，并更新海外、新闻、航运和宏观数据。晨间版与下午版分别归档为`.daily`和`.close`文件。
 - 目标在每日07:30前提供晨报；A股及国内商品行情使用最近已完成交易日，海外、新闻、航运和宏观指标使用实际采集时已发布的最新有效值。
 - 数据或构建校验失败时不会发布，新网站继续显示上一份有效日报。
+- 同一行情日的免费接口短时失败时，采集器可复用已归档的原始指标并标明原采集时间；板块成交占比在交易所总成交额缺失时统一改用已覆盖行业的成交额合计作分母，同时标明基数。跨行情日不沿用这些数据。
 - 采集任务见 [`.github/workflows/daily-dashboard.yml`](.github/workflows/daily-dashboard.yml)，独立守卫见 [`.github/workflows/dashboard-freshness-guard.yml`](.github/workflows/dashboard-freshness-guard.yml)。
 
 ## 技术框架

@@ -7,7 +7,49 @@ from __future__ import annotations
 
 from datetime import date
 from math import isfinite
+import re
 from typing import Any
+
+
+def choose_cached_market_metrics(
+    snapshots: list[dict[str, Any]], market_day: str, indicator_ids: list[str]
+) -> dict[str, dict[str, Any]]:
+    """Reuse only records from snapshots for the same completed market session."""
+    selected: dict[str, dict[str, Any]] = {}
+    target = date.fromisoformat(market_day)
+    for snapshot in snapshots:
+        if snapshot.get("run", {}).get("market_data_date") != market_day:
+            continue
+        for metric in snapshot.get("metrics", []):
+            indicator_id = metric.get("indicator_id")
+            if indicator_id not in indicator_ids or indicator_id in selected:
+                continue
+            try:
+                period = date.fromisoformat(str(metric["period"])[:10])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if indicator_id in ("M1-A05/06/07", "M1-A17/18") and period != target:
+                continue
+            if indicator_id == "M1-A15/16" and not (0 <= (target - period).days <= 3):
+                continue
+            selected[indicator_id] = metric
+        if len(selected) == len(indicator_ids):
+            break
+    return selected
+
+
+def parse_cached_turnover(metric: dict[str, Any]) -> list[tuple[str, float]]:
+    """Read the two exchange turnover totals stored in an immutable prior metric."""
+    try:
+        current_day = date.fromisoformat(metric["period"][:10])
+        previous_day = date.fromisoformat(metric["previous_period"][:10])
+        current = re.match(r"^([\d,]+)", str(metric["value"]))
+        previous = re.match(r"^([\d,]+)", str(metric["previous_value"]))
+        if previous_day >= current_day or not current or not previous:
+            return []
+        return [(current_day.isoformat(), float(current.group(1).replace(",", ""))), (previous_day.isoformat(), float(previous.group(1).replace(",", "")))]
+    except (KeyError, TypeError, ValueError):
+        return []
 
 
 def _etf_map(rows: list[dict[str, Any]]) -> dict[str, tuple[str, float]]:

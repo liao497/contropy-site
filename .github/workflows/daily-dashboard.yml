@@ -19,6 +19,10 @@ on:
         options:
           - daily
           - close
+      revision_id:
+        description: "手动补跑修订号（例如r2；留空使用daily/close）"
+        required: false
+        type: string
       only_if_stale:
         description: "仅在目标版本尚未发布时运行（供自动守卫调用）"
         required: false
@@ -62,6 +66,7 @@ jobs:
           EVENT_SCHEDULE: ${{ github.event.schedule }}
           REQUESTED_REPORT_DATE: ${{ inputs.report_date }}
           REQUESTED_EDITION: ${{ inputs.edition }}
+          REQUESTED_REVISION_ID: ${{ inputs.revision_id }}
           ONLY_IF_STALE: ${{ inputs.only_if_stale }}
           ALERT_ON_RECOVERY: ${{ inputs.alert_on_recovery }}
         run: |
@@ -82,6 +87,13 @@ jobs:
           revision_id=daily
           if [ "$run_role" = "close" ]; then
             revision_id=close
+          fi
+          if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ -n "$REQUESTED_REVISION_ID" ]; then
+            if [[ ! "$REQUESTED_REVISION_ID" =~ ^[a-z0-9][a-z0-9-]{0,31}$ ]]; then
+              echo "Invalid revision_id: use 1-32 lowercase letters, digits or hyphens" >&2
+              exit 1
+            fi
+            revision_id="$REQUESTED_REVISION_ID"
           fi
           fresh=false
           if [ "$snapshot_date" = "$report_date" ]; then

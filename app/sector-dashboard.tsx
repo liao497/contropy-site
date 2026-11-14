@@ -91,7 +91,7 @@ type CapitalFlows = {
   etf: { period: string; previous_period: string; change_100m_shares: number; change_pct: number; matched_count: number; excluded_new_count: number; coverage: number; top_increase: ShareChange[]; top_decrease: ShareChange[]; publisher: string; canonical_url: string } | null;
   southbound: { period: string; net_buy_100m_cny: number; previous_net_buy_100m_cny: number; streak: number; publisher: string; canonical_url: string } | null;
   margin: { period: string; balance_100m_cny: number; balance_change_100m_cny: number; buy_turnover_pct: number | null; publisher: string; canonical_url: string } | null;
-  sectors: { period: string; increasing: SectorActivity[]; decreasing: SectorActivity[]; publisher: string; canonical_url: string } | null;
+  sectors: { period: string; increasing: SectorActivity[]; decreasing: SectorActivity[]; basis?: string; publisher: string; canonical_url: string } | null;
 };
 
 type Snapshot = {
@@ -245,7 +245,7 @@ function CapitalFlowSection({ flows, metrics }: { flows?: CapitalFlows; metrics:
         {sectors ? <>
           <div className="s-flow-rank"><b>占比上升</b>{sectors.increasing.length ? sectors.increasing.map((item) => <span key={item.name}>{item.name} <SignedValue value={item.change_pp} suffix="个百分点" /></span>) : <span>暂无可比板块</span>}</div>
           <div className="s-flow-rank"><b>占比下降</b>{sectors.decreasing.length ? sectors.decreasing.map((item) => <span key={item.name}>{item.name} <SignedValue value={item.change_pp} suffix="个百分点" /></span>) : <span>暂无可比板块</span>}</div>
-          <small className="s-flow-source">{sectors.period} · <a href={sectors.canonical_url} target="_blank" rel="noreferrer">{sectors.publisher}</a></small>
+          <small className="s-flow-source">{sectors.period} · 基数：{sectors.basis ?? "沪深股票成交额"} · <a href={sectors.canonical_url} target="_blank" rel="noreferrer">{sectors.publisher}</a></small>
         </> : <><p>{sectorFallback?.value ? String(sectorFallback.value).split("；").slice(0, 3).join("；") : "待更新"}</p><small className="s-flow-source">{sectorFallback?.period ?? "—"} · 可比前期占比待下一次采集</small></>}
         <p>成交占比变化只是相对交易活跃度，不等同于净资金流入。</p>
       </article>

@@ -23,7 +23,7 @@ import akshare as ak
 import pandas as pd
 import requests
 
-from capital_flow import compute_etf_share_flow, rank_sector_activity
+from capital_flow import choose_cached_market_metrics, compute_etf_share_flow, parse_cached_turnover, rank_sector_activity
 from signal_engine import crowded_industries, screen_sector_candidates, shipping_risk, summarize_risks
 
 
@@ -1089,14 +1089,28 @@ def add_industry_metrics(
     if len(histories) < 63:
         gaps.append({"indicator_id": "M3-*", "reason": f"行业历史仅覆盖{len(histories)}/{len(names)}，低于70%发布门槛"})
         return []
-    latest_turnover_yuan = market_turnover[0][1] * 1e8 if market_turnover else sum(float(f.iloc[-1]["amount"]) for f in histories.values())
-    previous_turnover = market_turnover[1] if len(market_turnover) > 1 else None
+    previous_days = {frame.iloc[-2]["date"].date() for frame in histories.values()}
+    latest_exchange = market_turnover[0] if market_turnover else None
+    previous_exchange = market_turnover[1] if len(market_turnover) > 1 else None
+    exchange_comparable = (
+        latest_exchange is not None and latest_exchange[0] == report_day and
+        previous_exchange is not None and previous_exchange[0] in previous_days and
+        len(previous_days) == 1 and latest_exchange[1] > 0 and previous_exchange[1] > 0
+    )
+    if exchange_comparable:
+        latest_turnover_yuan = latest_exchange[1] * 1e8
+        previous_turnover_yuan = previous_exchange[1] * 1e8
+        share_basis = "沪深股票成交额"
+    else:
+        latest_turnover_yuan = sum(float(frame.iloc[-1]["amount"]) for frame in histories.values())
+        previous_turnover_yuan = sum(float(frame.iloc[-2]["amount"]) for frame in histories.values()) if len(previous_days) == 1 else 0
+        share_basis = "同花顺行业样本成交额"
     rows: list[dict[str, Any]] = []
     for name, frame in histories.items():
         current_amount = float(frame.iloc[-1]["amount"])
         prior_day = frame.iloc[-2]["date"].date()
         prior_amount = float(frame.iloc[-2]["amount"])
-        previous_share = prior_amount / (previous_turnover[1] * 1e8) * 100 if previous_turnover and prior_day == previous_turnover[0] and previous_turnover[1] > 0 else None
+        previous_share = prior_amount / previous_turnover_yuan * 100 if previous_turnover_yuan > 0 and len(previous_days) == 1 and prior_day in previous_days else None
         mean5 = float(pd.to_numeric(frame["amount"], errors="coerce").tail(5).mean())
         mean20 = float(pd.to_numeric(frame["amount"], errors="coerce").tail(20).mean())
         closes = pd.to_numeric(frame["close"], errors="coerce")
@@ -1105,7 +1119,7 @@ def add_industry_metrics(
         high_close20 = float(closes.tail(20).max())
         rows.append({
             "name": name, "ret5": trailing_return(frame, 5), "ret20": trailing_return(frame, 20), "ret60": trailing_return(frame, 60),
-            "share": current_amount / latest_turnover_yuan * 100, "previous_share": previous_share,
+            "share": current_amount / latest_turnover_yuan * 100, "previous_share": previous_share, "share_basis": share_basis,
             "amount5x": current_amount / mean5, "amount20x": current_amount / mean20,
             "vol20": realized_volatility(frame), "atr14": atr_percent(frame), "dd20": max_drawdown(frame, 20), "dd60": max_drawdown(frame, 60),
             "ma20_gap": (latest_close / mean_close20 - 1) * 100 if mean_close20 > 0 else None,
@@ -1164,9 +1178,9 @@ def add_industry_metrics(
     metrics.append(metric(
         "M3-A06/07", "行业成交占比与活跃度", "行业主题与海外映射", "daily",
         "；".join(f"{row['name']} 占比{row['share']:.2f}%（较20日{row['amount20x']:.2f}×）" for _, row in industry.nlargest(8,"share").iterrows()),
-        None, report_day.isoformat(), None, None, None, None, retrieved_at, "E3", "同花顺行业指数 / 沪深交易所成交额",
+        None, report_day.isoformat(), None, None, None, None, retrieved_at, "E3", f"同花顺行业指数 / {share_basis}",
         "https://q.10jqka.com.cn/thshy/", "行业成交额,全市场成交额", .75, len(industry)/len(names), 1.0, "none", None,
-        "行业当日成交额/沪深股票成交额；变化项为行业自身成交额/20日均值，尚非严格成交占比历史变化", available_at=iso_at(report_day, 17),
+        f"行业当日成交额/{share_basis}；变化项为行业自身成交额/20日均值", available_at=iso_at(report_day, 17),
     ))
     metrics.append(metric(
         "M3-A08/09", "行业波动率 / ATR", "行业主题与海外映射", "daily",
@@ -1178,7 +1192,7 @@ def add_industry_metrics(
     ))
     metrics.append(metric(
         "M3-A10", "行业成交拥挤度", "行业主题与海外映射", "daily", top_text("crowding", 8), None,
-        report_day.isoformat(), None, None, None, None, retrieved_at, "E3", "同花顺行业指数 / 沪深交易所成交额",
+        report_day.isoformat(), None, None, None, None, retrieved_at, "E3", f"同花顺行业指数 / {share_basis}",
         "https://q.10jqka.com.cn/thshy/", "成交占比,成交额/20日均值", .70, len(industry)/len(names), 1.0,
         "watch" if crowded_names else "none",
         f"{', '.join(crowded_names[:3])}成交占比与活跃度均处前10%，且成交额至少为20日均值1.8倍；仍非历史极端判断。" if crowded_names else None,
@@ -1602,19 +1616,61 @@ def is_a_share_trade_day(report_day: date) -> bool:
     return report_day in set(calendar["trade_date"].tolist())
 
 
+def archived_market_metrics(report_day: date, market_day: date) -> dict[str, dict[str, Any]]:
+    """Use prior verified records only for the identical completed market day."""
+    paths = [Path("data/current-snapshot.json")]
+    for offset in range(8):
+        archive_day = report_day - timedelta(days=offset)
+        directory = Path("data/snapshots") / archive_day.strftime("%Y") / archive_day.strftime("%m")
+        paths.extend(directory.glob(f"{archive_day.isoformat()}*.json"))
+    snapshots = []
+    for path in paths:
+        try:
+            snapshot = json.loads(path.read_text(encoding="utf-8"))
+            if snapshot.get("data_state") != "demo" and snapshot.get("report_date", "") <= report_day.isoformat():
+                snapshots.append(snapshot)
+        except (OSError, ValueError):
+            continue
+    snapshots.sort(key=lambda item: item.get("as_of", ""), reverse=True)
+    return choose_cached_market_metrics(snapshots, market_day.isoformat(), ["M1-A05/06/07", "M1-A15/16", "M1-A17/18"])
+
+
 def build_snapshot(report_day: date, revision: str = "r1", market_day: date | None = None) -> dict[str, Any]:
     now = datetime.now(SHANGHAI)
     market_day = market_day or completed_market_day(report_day, now)
     retrieved_at = now.isoformat(timespec="seconds")
     metrics: list[dict[str, Any]] = []
     gaps: list[dict[str, str]] = []
+    cached = archived_market_metrics(report_day, market_day)
+
+    def reuse_archived(indicator_id: str) -> dict[str, Any] | None:
+        record = cached.get(indicator_id)
+        if record is None or any(item["indicator_id"] == indicator_id for item in metrics):
+            return None
+        reused = dict(record)
+        reused["source_revision_id"] = record.get("revision_id")
+        reused["publisher"] = f"{record['publisher']}（同一行情日归档复用）"
+        metrics.append(reused)
+        gap_ids = {indicator_id, "M1-A05/07"} if indicator_id == "M1-A05/06/07" else {indicator_id}
+        for gap in gaps:
+            if gap["indicator_id"] in gap_ids:
+                gap["reason"] += "；已复用同一行情日的已归档值，原采集时间保留"
+        return reused
 
     market_activity(market_day, retrieved_at, metrics, gaps)
     turnover = add_turnover(market_day, retrieved_at, metrics, gaps)
+    if not turnover:
+        reused_turnover = reuse_archived("M1-A05/06/07")
+        if reused_turnover:
+            turnover = [(date.fromisoformat(day), value) for day, value in parse_cached_turnover(reused_turnover)]
     add_a_share_style_risk(market_day, retrieved_at, metrics, gaps)
     add_a_share_concentration(market_day, retrieved_at, metrics, gaps)
     margin_flow = add_margin(market_day, turnover, retrieved_at, metrics, gaps)
+    if margin_flow is None:
+        reuse_archived("M1-A15/16")
     etf_flow = add_etf(market_day, retrieved_at, metrics, gaps)
+    if etf_flow is None:
+        reuse_archived("M1-A17/18")
     southbound_flow = add_southbound(market_day, retrieved_at, metrics, gaps)
     global_frames = add_global(report_day, retrieved_at, metrics, gaps)
     add_macro(retrieved_at, metrics, gaps)
@@ -1623,7 +1679,8 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
     sector_activity = rank_sector_activity(industry_rows)
     sector_flow = {
         "period": market_day.isoformat(), **sector_activity,
-        "publisher": "同花顺行业指数 / 沪深交易所成交额",
+        "basis": industry_rows[0]["share_basis"],
+        "publisher": f"同花顺行业指数 / {industry_rows[0]['share_basis']}",
         "canonical_url": "https://q.10jqka.com.cn/thshy/",
     } if sector_activity["increasing"] or sector_activity["decreasing"] else None
     add_sentiment(market_day, retrieved_at, global_frames, metrics, gaps)
