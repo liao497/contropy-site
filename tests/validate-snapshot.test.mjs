@@ -52,3 +52,20 @@ test("rejects sector leads or market activity labelled with the wrong trading da
   snapshot.metrics.find((metric) => metric.indicator_id === "M1-A01/02").period = "2026-10-08 15:00:00";
   await assert.rejects(validate(snapshot), /market activity.*stale/);
 });
+
+test("accepts comparable capital-flow records but rejects future or stale sector dates", async () => {
+  const snapshot = JSON.parse(await readFile(fixture, "utf8"));
+  const marketDay = snapshot.run.market_data_date;
+  snapshot.capital_flows = {
+    etf: { period: marketDay, previous_period: "2026-11-12", change_100m_shares: -2.5, coverage: 0.95, matched_count: 500, top_increase: [], top_decrease: [] },
+    southbound: { period: marketDay, net_buy_100m_cny: 23.3, streak: 3 },
+    margin: null,
+    sectors: { period: marketDay, increasing: [], decreasing: [] },
+  };
+  await validate(snapshot);
+  snapshot.capital_flows.sectors.period = "2026-11-12";
+  await assert.rejects(validate(snapshot), /sector activity date/);
+  snapshot.capital_flows.sectors.period = marketDay;
+  snapshot.capital_flows.etf.period = "2026-11-20";
+  await assert.rejects(validate(snapshot), /ETF share date/);
+});

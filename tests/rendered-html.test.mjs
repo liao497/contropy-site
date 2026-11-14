@@ -52,6 +52,9 @@ test("server-renders the metric-only real daily dashboard", async () => {
   assert.match(html, /重点提示/);
   assert.match(html, new RegExp(`${escapeRegExp(snapshot.run.risk_level)}|行情滞后 · 判断受限`));
   assert.match(html, /机会线索/);
+  assert.match(html, /资金流向/);
+  assert.match(html, /板块成交占比/);
+  assert.match(html, /北向日净买额/);
   assert.match(html, /重大新闻/);
   assert.match(html, /航运要道/);
   assert.match(html, /霍尔木兹海峡/);

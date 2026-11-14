@@ -72,3 +72,25 @@ test("archives observation leads separately from validated opportunities", async
   assert.match(report, /测试行业/);
   assert.match(report, /估值未验证/);
 });
+
+test("archives capital-flow measures with their proxy labels", async () => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "capital-flow-"));
+  const fixture = JSON.parse(await readFile(new URL("fixtures/demo-snapshot.json", import.meta.url), "utf8"));
+  fixture.capital_flows = {
+    etf: { period: "2026-08-18", previous_period: "2026-08-15", change_100m_shares: 12.5, change_pct: 0.8, matched_count: 600, excluded_new_count: 2, coverage: 0.98, top_increase: [{ code: "510300", name: "沪深300ETF", change_100m_shares: 8.2 }], top_decrease: [] },
+    southbound: { period: "2026-08-18", net_buy_100m_cny: 35.2, previous_net_buy_100m_cny: 12.1, streak: 2 },
+    margin: null,
+    sectors: { period: "2026-08-18", increasing: [{ name: "半导体", share_pct: 12, previous_share_pct: 10, change_pp: 2, amount20x: 1.4 }], decreasing: [] },
+  };
+  const fixturePath = path.join(output, "flow-fixture.json");
+  await writeFile(fixturePath, `${JSON.stringify(fixture)}\n`);
+  const result = spawnSync(process.execPath, [
+    new URL("../scripts/archive-report.mjs", import.meta.url).pathname, fixturePath, output,
+  ], { cwd: projectRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  const report = await readFile(path.join(output, "reports/daily/2026/08/2026-08-19.md"), "utf8");
+  assert.match(report, /资金流向与活跃度/);
+  assert.match(report, /沪深300ETF.*8\.2亿份/);
+  assert.match(report, /板块成交占比迁移/);
+  assert.match(report, /不等同于净资金流入/);
+});
