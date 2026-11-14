@@ -29,6 +29,35 @@ function shippingRows(items) {
   return items.map((item) => `| ${cell(item.route_name)} | ${cell(item.vessel_count)} | ${cell(item.tanker_count)} | ${cell(item.average_7d)} | ${cell(item.average_28d)} | ${cell(item.change_vs_28d_pct)}% | ${cell(item.period)} |`).join("\n") || "| — | — | — | — | — | — | — |";
 }
 
+function signed(value) {
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
+function capitalFlowReport(flows) {
+  if (!flows) return "- 本期尚未生成可比资金与活跃度数据。";
+  const etf = flows.etf;
+  const southbound = flows.southbound;
+  const margin = flows.margin;
+  const sectors = flows.sectors;
+  const etfRanks = (rows) => rows?.map((item) => `${cell(item.name)} ${signed(item.change_100m_shares)}亿份`).join("；") || "无";
+  const sectorRanks = (rows) => rows?.map((item) => `${cell(item.name)} ${signed(item.change_pp)}个百分点（现占比${item.share_pct}%）`).join("；") || "无";
+  return `### ETF份额变化（上交所）
+
+${etf ? `- ${etf.previous_period} → ${etf.period}：可比ETF份额${signed(etf.change_100m_shares)}亿份（${signed(etf.change_pct)}%）；可比${etf.matched_count}只，覆盖${(etf.coverage * 100).toFixed(0)}%。\n- 份额增加：${etfRanks(etf.top_increase)}。\n- 份额减少：${etfRanks(etf.top_decrease)}。\n- 来源：[${cell(etf.publisher)}](${cell(etf.canonical_url)})。` : "- 可比基金份额数据暂不可用。"}
+
+### 境内与跨境
+
+${southbound ? `- 南向成交净买额：${signed(southbound.net_buy_100m_cny)}亿元；连续净买入${southbound.streak}日；数据日${southbound.period}；来源：[${cell(southbound.publisher)}](${cell(southbound.canonical_url)})。` : "- 南向成交净买额暂不可用。"}
+${margin ? `- 两融余额较上一期${signed(margin.balance_change_100m_cny)}亿元；余额${margin.balance_100m_cny}亿元；数据日${margin.period}；来源：[${cell(margin.publisher)}](${cell(margin.canonical_url)})。` : "- 两融变化暂不可用。"}
+- 北向日净买额已停止公开披露，不使用估算值。
+
+### 板块成交占比迁移
+
+${sectors ? `- 占比上升：${sectorRanks(sectors.increasing)}。\n- 占比下降：${sectorRanks(sectors.decreasing)}。\n- 数据日${sectors.period}；来源：[${cell(sectors.publisher)}](${cell(sectors.canonical_url)})。` : "- 可比板块成交占比暂不可用。"}
+
+> ETF份额变化是申赎方向代理；两融变化反映杠杆活动；板块成交占比变化反映相对交易活跃度。三者均不等同于净资金流入。`;
+}
+
 function renderReport(snapshot) {
   const reportSession = snapshot.run.revision_id === "close" ? "收盘" : "晨间";
   const market = sectionMetrics(snapshot, "M1-");
@@ -42,6 +71,7 @@ function renderReport(snapshot) {
   const majorNews = snapshot.major_news ?? [];
   const shipping = snapshot.shipping ?? [];
   const commodities = snapshot.commodities ?? [];
+  const capitalFlows = snapshot.capital_flows;
   const table = (rows) => `| 指标 | 最新数据 | 上一日/期 | 同比情况 | 解读 |\n|---|---:|---:|---:|---|\n${metricRows(rows)}`;
 
   return `# ${snapshot.report_date} ${reportSession}行业投资看板
@@ -71,6 +101,10 @@ ${commodityRows(commodities)}
 ## 市场环境
 
 ${table(market)}
+
+## 资金流向与活跃度
+
+${capitalFlowReport(capitalFlows)}
 
 ## 宏观、利率与政策预期
 

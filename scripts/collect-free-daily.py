@@ -23,6 +23,7 @@ import akshare as ak
 import pandas as pd
 import requests
 
+from capital_flow import compute_etf_share_flow, rank_sector_activity
 from signal_engine import crowded_industries, screen_sector_candidates, shipping_risk, summarize_risks
 
 
@@ -642,7 +643,7 @@ def add_turnover(report_day: date, retrieved_at: str, metrics: list[dict[str, An
     return history
 
 
-def add_margin(report_day: date, turnover: list[tuple[date, float]], retrieved_at: str, metrics: list[dict[str, Any]], gaps: list[dict[str, str]]) -> None:
+def add_margin(report_day: date, turnover: list[tuple[date, float]], retrieved_at: str, metrics: list[dict[str, Any]], gaps: list[dict[str, str]]) -> dict[str, Any] | None:
     rows = []
     cursor = report_day
     while len(rows) < 2 and cursor >= report_day - timedelta(days=7):
@@ -658,7 +659,7 @@ def add_margin(report_day: date, turnover: list[tuple[date, float]], retrieved_a
         cursor -= timedelta(days=1)
     if len(rows) < 2:
         gaps.append({"indicator_id": "M1-A15/16", "reason": "沪深两融数据尚未齐备或免费接口为空"})
-        return
+        return None
     latest_day, latest_balance, latest_buy = rows[0]
     previous_day, previous_balance, previous_buy = rows[1]
     turnover_map = {d: v for d, v in turnover}
@@ -679,9 +680,16 @@ def add_margin(report_day: date, turnover: list[tuple[date, float]], retrieved_a
         "融资余额,融资买入额", .95, .93, .85, "none", None,
         "沪深融资余额求和；沪深融资买入额/当日沪深股票成交额", published_at=iso_at(latest_day, 18), available_at=iso_at(latest_day, 18),
     ))
+    return {
+        "period": latest_day.isoformat(), "balance_100m_cny": round(latest_balance, 2),
+        "balance_change_100m_cny": round(latest_balance - previous_balance, 2),
+        "buy_turnover_pct": round(ratio, 2) if ratio is not None else None,
+        "publisher": "上海证券交易所 / 深圳证券交易所",
+        "canonical_url": "https://www.sse.com.cn/market/othersdata/margin/",
+    }
 
 
-def add_etf(report_day: date, retrieved_at: str, metrics: list[dict[str, Any]], gaps: list[dict[str, str]]) -> None:
+def add_etf(report_day: date, retrieved_at: str, metrics: list[dict[str, Any]], gaps: list[dict[str, str]]) -> dict[str, Any] | None:
     rows = []
     cursor = report_day
     while len(rows) < 2 and cursor >= report_day - timedelta(days=7):
@@ -689,15 +697,15 @@ def add_etf(report_day: date, retrieved_at: str, metrics: list[dict[str, Any]], 
         try:
             frame = ak.fund_etf_scale_sse(date=key)
             shares = float(pd.to_numeric(frame["基金份额"], errors="coerce").sum()) / 1e8
-            rows.append((cursor, shares, len(frame)))
+            rows.append((cursor, shares, len(frame), frame.to_dict("records")))
         except Exception:
             pass
         cursor -= timedelta(days=1)
     if len(rows) < 2:
         gaps.append({"indicator_id": "M1-A17/18", "reason": "ETF历史份额免费源覆盖不足"})
-        return
-    latest_day, latest, latest_count = rows[0]
-    previous_day, previous, _ = rows[1]
+        return None
+    latest_day, latest, latest_count, latest_rows = rows[0]
+    previous_day, previous, _, previous_rows = rows[1]
     metrics.append(metric(
         "M1-A17/18", "上交所ETF总份额（日变化）", "市场环境", "daily",
         f"{latest:,.0f}亿份；{(latest/previous-1)*100:+.2f}%", None, latest_day.isoformat(),
@@ -707,14 +715,23 @@ def add_etf(report_day: date, retrieved_at: str, metrics: list[dict[str, Any]], 
         "仅覆盖上交所ETF，不能代表全市场ETF份额。" if abs(latest / previous - 1) >= .01 else None,
         f"{latest_count}只上交所ETF基金份额求和/1e8", published_at=iso_at(latest_day, 18), available_at=iso_at(latest_day, 18),
     ))
+    flow = compute_etf_share_flow(latest_rows, previous_rows, latest_day.isoformat(), previous_day.isoformat())
+    if flow is None:
+        gaps.append({"indicator_id": "CF-ETF", "reason": "可比ETF份额覆盖低于90%，不发布份额变化排行"})
+        return None
+    flow.update({"publisher": "上海证券交易所（AKShare采集）", "canonical_url": "https://www.sse.com.cn/market/funddata/volumn/etfvolumn/"})
+    return flow
 
 
-def add_southbound(report_day: date, retrieved_at: str, metrics: list[dict[str, Any]], gaps: list[dict[str, str]]) -> None:
+def add_southbound(report_day: date, retrieved_at: str, metrics: list[dict[str, Any]], gaps: list[dict[str, str]]) -> dict[str, Any] | None:
     frame = safe_call("M1-B01/02", lambda: ak.stock_hsgt_hist_em(symbol="南向资金"), gaps)
     if frame is None or frame.empty:
-        return
+        return None
     frame = frame[pd.to_datetime(frame["日期"]).dt.date <= report_day]
     frame = frame.dropna(subset=["当日成交净买额"])
+    if len(frame) < 2:
+        gaps.append({"indicator_id": "M1-B01/02", "reason": "南向资金净买额不足两个可比数据日"})
+        return None
     latest, previous = frame.iloc[-1], frame.iloc[-2]
     streak = 0
     for value in reversed(frame["当日成交净买额"].tolist()):
@@ -732,6 +749,12 @@ def add_southbound(report_day: date, retrieved_at: str, metrics: list[dict[str, 
         "南向资金单日净卖出超过100亿元。" if net <= -100 else None,
         "港股通沪+港股通深成交净买额；接口换算为亿元", available_at=iso_at(latest["日期"], 16, 20),
     ))
+    return {
+        "period": str(latest["日期"]), "net_buy_100m_cny": round(net, 2),
+        "previous_net_buy_100m_cny": round(float(previous["当日成交净买额"]), 2),
+        "streak": streak, "publisher": "东方财富（AKShare采集）",
+        "canonical_url": "https://data.eastmoney.com/hsgt/index.html",
+    }
 
 
 def fred_series(series: str) -> pd.DataFrame:
@@ -1067,9 +1090,13 @@ def add_industry_metrics(
         gaps.append({"indicator_id": "M3-*", "reason": f"行业历史仅覆盖{len(histories)}/{len(names)}，低于70%发布门槛"})
         return []
     latest_turnover_yuan = market_turnover[0][1] * 1e8 if market_turnover else sum(float(f.iloc[-1]["amount"]) for f in histories.values())
+    previous_turnover = market_turnover[1] if len(market_turnover) > 1 else None
     rows: list[dict[str, Any]] = []
     for name, frame in histories.items():
         current_amount = float(frame.iloc[-1]["amount"])
+        prior_day = frame.iloc[-2]["date"].date()
+        prior_amount = float(frame.iloc[-2]["amount"])
+        previous_share = prior_amount / (previous_turnover[1] * 1e8) * 100 if previous_turnover and prior_day == previous_turnover[0] and previous_turnover[1] > 0 else None
         mean5 = float(pd.to_numeric(frame["amount"], errors="coerce").tail(5).mean())
         mean20 = float(pd.to_numeric(frame["amount"], errors="coerce").tail(20).mean())
         closes = pd.to_numeric(frame["close"], errors="coerce")
@@ -1078,7 +1105,8 @@ def add_industry_metrics(
         high_close20 = float(closes.tail(20).max())
         rows.append({
             "name": name, "ret5": trailing_return(frame, 5), "ret20": trailing_return(frame, 20), "ret60": trailing_return(frame, 60),
-            "share": current_amount / latest_turnover_yuan * 100, "amount5x": current_amount / mean5, "amount20x": current_amount / mean20,
+            "share": current_amount / latest_turnover_yuan * 100, "previous_share": previous_share,
+            "amount5x": current_amount / mean5, "amount20x": current_amount / mean20,
             "vol20": realized_volatility(frame), "atr14": atr_percent(frame), "dd20": max_drawdown(frame, 20), "dd60": max_drawdown(frame, 60),
             "ma20_gap": (latest_close / mean_close20 - 1) * 100 if mean_close20 > 0 else None,
             "from_high20": (latest_close / high_close20 - 1) * 100 if high_close20 > 0 else None,
@@ -1585,13 +1613,19 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
     turnover = add_turnover(market_day, retrieved_at, metrics, gaps)
     add_a_share_style_risk(market_day, retrieved_at, metrics, gaps)
     add_a_share_concentration(market_day, retrieved_at, metrics, gaps)
-    add_margin(market_day, turnover, retrieved_at, metrics, gaps)
-    add_etf(market_day, retrieved_at, metrics, gaps)
-    add_southbound(market_day, retrieved_at, metrics, gaps)
+    margin_flow = add_margin(market_day, turnover, retrieved_at, metrics, gaps)
+    etf_flow = add_etf(market_day, retrieved_at, metrics, gaps)
+    southbound_flow = add_southbound(market_day, retrieved_at, metrics, gaps)
     global_frames = add_global(report_day, retrieved_at, metrics, gaps)
     add_macro(retrieved_at, metrics, gaps)
     add_financial_stress(retrieved_at, global_frames, metrics, gaps)
     industry_rows = add_industry_metrics(market_day, retrieved_at, turnover, metrics, gaps)
+    sector_activity = rank_sector_activity(industry_rows)
+    sector_flow = {
+        "period": market_day.isoformat(), **sector_activity,
+        "publisher": "同花顺行业指数 / 沪深交易所成交额",
+        "canonical_url": "https://q.10jqka.com.cn/thshy/",
+    } if sector_activity["increasing"] or sector_activity["decreasing"] else None
     add_sentiment(market_day, retrieved_at, global_frames, metrics, gaps)
     major_news = collect_major_news(report_day, retrieved_at, gaps)
     shipping = collect_shipping(report_day, retrieved_at, gaps)
@@ -1654,6 +1688,7 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
         "major_news": major_news,
         "shipping": shipping,
         "commodities": commodities,
+        "capital_flows": {"etf": etf_flow, "southbound": southbound_flow, "margin": margin_flow, "sectors": sector_flow},
         "data_gaps": gaps,
         "run": {
             "run_id": f"free-source-test-{report_day.isoformat()}-{revision}",

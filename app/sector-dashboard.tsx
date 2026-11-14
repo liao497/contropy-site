@@ -85,6 +85,15 @@ type CommodityQuote = {
   canonical_url: string;
 };
 
+type ShareChange = { code: string; name: string; change_100m_shares: number };
+type SectorActivity = { name: string; share_pct: number; previous_share_pct: number; change_pp: number; amount20x: number };
+type CapitalFlows = {
+  etf: { period: string; previous_period: string; change_100m_shares: number; change_pct: number; matched_count: number; excluded_new_count: number; coverage: number; top_increase: ShareChange[]; top_decrease: ShareChange[]; publisher: string; canonical_url: string } | null;
+  southbound: { period: string; net_buy_100m_cny: number; previous_net_buy_100m_cny: number; streak: number; publisher: string; canonical_url: string } | null;
+  margin: { period: string; balance_100m_cny: number; balance_change_100m_cny: number; buy_turnover_pct: number | null; publisher: string; canonical_url: string } | null;
+  sectors: { period: string; increasing: SectorActivity[]; decreasing: SectorActivity[]; publisher: string; canonical_url: string } | null;
+};
+
 type Snapshot = {
   report_date: string;
   as_of: string;
@@ -101,6 +110,7 @@ type Snapshot = {
   major_news?: MajorNews[];
   shipping?: ShippingFlow[];
   commodities?: CommodityQuote[];
+  capital_flows?: CapitalFlows;
   data_gaps: Array<{ indicator_id: string; reason: string }>;
   run: { top_call: string; risk_level: string; coverage_note: string; market_data_date?: string };
 };
@@ -193,6 +203,54 @@ function formatNumber(value: number) {
 function Change({ value }: { value: number }) {
   const tone = value > 0 ? "up" : value < 0 ? "down" : "flat";
   return <span className={`s-change s-change--${tone}`}>{value > 0 ? "+" : ""}{value.toFixed(2)}%</span>;
+}
+
+function SignedValue({ value, suffix }: { value: number; suffix: string }) {
+  return <span className={value > 0 ? "s-flow-positive" : value < 0 ? "s-flow-negative" : ""}>{value > 0 ? "+" : ""}{formatNumber(value)}{suffix}</span>;
+}
+
+function CapitalFlowSection({ flows, metrics }: { flows?: CapitalFlows; metrics: Metric[] }) {
+  const byId = (id: string) => metrics.find((item) => item.indicator_id === id);
+  const etfFallback = byId("M1-A17/18");
+  const southFallback = byId("M1-B01/02");
+  const marginFallback = byId("M1-A15/16");
+  const sectorFallback = byId("M3-A06/07");
+  const etf = flows?.etf;
+  const southbound = flows?.southbound;
+  const margin = flows?.margin;
+  const sectors = flows?.sectors;
+  if (!etf && !southbound && !margin && !sectors && !etfFallback && !southFallback && !marginFallback && !sectorFallback) return null;
+  return <section className="s-section s-flow-section" aria-label="资金流向">
+    <div className="s-section-heading"><h2>资金流向</h2><span>真实净买入与交易活跃度分开呈现</span></div>
+    <div className="s-flow-grid">
+      <article className="s-flow-panel">
+        <div className="s-flow-panel-head"><span>ETF份额变化</span><small>申赎方向代理 · 上交所</small></div>
+        {etf ? <>
+          <strong className="s-flow-value"><SignedValue value={etf.change_100m_shares} suffix=" 亿份" /></strong>
+          <p>可比基金较上一期 <SignedValue value={etf.change_pct} suffix="%" /> · {etf.matched_count}只 · 覆盖{(etf.coverage * 100).toFixed(0)}%</p>
+          <div className="s-flow-rank"><b>增加</b>{etf.top_increase.length ? etf.top_increase.map((item) => <span key={item.code}>{item.name} <SignedValue value={item.change_100m_shares} suffix="亿份" /></span>) : <span>无显著增加</span>}</div>
+          <div className="s-flow-rank"><b>减少</b>{etf.top_decrease.length ? etf.top_decrease.map((item) => <span key={item.code}>{item.name} <SignedValue value={item.change_100m_shares} suffix="亿份" /></span>) : <span>无显著减少</span>}</div>
+          <small className="s-flow-source">{etf.previous_period} → {etf.period} · <a href={etf.canonical_url} target="_blank" rel="noreferrer">{etf.publisher}</a></small>
+        </> : <><strong className="s-flow-value">{etfFallback?.value ?? "待更新"}</strong><p>仅有ETF总份额，基金级可比份额排行待下一次采集。</p><small className="s-flow-source">{etfFallback?.period ?? "—"} · {etfFallback?.publisher ?? "—"}</small></>}
+      </article>
+      <article className="s-flow-panel">
+        <div className="s-flow-panel-head"><span>境内与跨境</span><small>南向净买入 · 境内两融</small></div>
+        <div className="s-flow-stat"><span>南向资金成交净买额</span><strong>{southbound ? <SignedValue value={southbound.net_buy_100m_cny} suffix=" 亿元" /> : southFallback?.value ?? "待更新"}</strong><small>{southbound ? `${southbound.period} · 连续净买入${southbound.streak}日` : southFallback?.period ?? "—"}</small></div>
+        <div className="s-flow-stat"><span>两融余额变化</span><strong>{margin ? <SignedValue value={margin.balance_change_100m_cny} suffix=" 亿元" /> : marginFallback?.value ?? "待更新"}</strong><small>{margin ? `${margin.period} · 余额${formatNumber(margin.balance_100m_cny)}亿元` : marginFallback?.period ?? "—"}</small></div>
+        <p>北向日净买额已停止公开披露，不展示估算值。两融余额变化反映杠杆活动，不等同于资金净流入。</p>
+        <small className="s-flow-source">{southbound ? <a href={southbound.canonical_url} target="_blank" rel="noreferrer">{southbound.publisher}</a> : southFallback?.publisher ?? "—"} · {margin ? <a href={margin.canonical_url} target="_blank" rel="noreferrer">{margin.publisher}</a> : marginFallback?.publisher ?? "—"}</small>
+      </article>
+      <article className="s-flow-panel">
+        <div className="s-flow-panel-head"><span>板块成交占比</span><small>交易关注度迁移</small></div>
+        {sectors ? <>
+          <div className="s-flow-rank"><b>占比上升</b>{sectors.increasing.length ? sectors.increasing.map((item) => <span key={item.name}>{item.name} <SignedValue value={item.change_pp} suffix="个百分点" /></span>) : <span>暂无可比板块</span>}</div>
+          <div className="s-flow-rank"><b>占比下降</b>{sectors.decreasing.length ? sectors.decreasing.map((item) => <span key={item.name}>{item.name} <SignedValue value={item.change_pp} suffix="个百分点" /></span>) : <span>暂无可比板块</span>}</div>
+          <small className="s-flow-source">{sectors.period} · <a href={sectors.canonical_url} target="_blank" rel="noreferrer">{sectors.publisher}</a></small>
+        </> : <><p>{sectorFallback?.value ? String(sectorFallback.value).split("；").slice(0, 3).join("；") : "待更新"}</p><small className="s-flow-source">{sectorFallback?.period ?? "—"} · 可比前期占比待下一次采集</small></>}
+        <p>成交占比变化只是相对交易活跃度，不等同于净资金流入。</p>
+      </article>
+    </div>
+  </section>;
 }
 
 function MajorNewsSection({ news, shipping }: { news: MajorNews[]; shipping: ShippingFlow[] }) {
@@ -340,6 +398,8 @@ export function SectorDashboard() {
       <section className="s-core-grid" aria-label="核心指标">
         {core.map((item) => <MetricCard metric={item} key={item.indicator_id} />)}
       </section>
+
+      <CapitalFlowSection flows={snapshot.capital_flows} metrics={snapshot.metrics} />
 
       {snapshot.events.length || headlineNews.length ? <section className="s-section s-next-section">
         <div className="s-section-heading"><h2>接下来关注</h2><span>重要催化与异动</span></div>

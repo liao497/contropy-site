@@ -94,6 +94,33 @@
         "required": ["group", "symbol", "name", "contract", "price", "unit", "daily_change_pct", "weekly_change_pct", "period", "signal", "publisher", "canonical_url", "retrieved_at"]
       }
     },
+    "capital_flows": {
+      "type": "object",
+      "required": ["etf", "southbound", "margin", "sectors"],
+      "properties": {
+        "etf": {
+          "type": ["object", "null"],
+          "required": ["period", "previous_period", "change_100m_shares", "change_pct", "matched_count", "excluded_new_count", "coverage", "top_increase", "top_decrease", "publisher", "canonical_url"],
+          "properties": {
+            "period": { "type": "string", "format": "date" },
+            "previous_period": { "type": "string", "format": "date" },
+            "change_100m_shares": { "type": "number" },
+            "change_pct": { "type": "number" },
+            "matched_count": { "type": "integer", "minimum": 1 },
+            "excluded_new_count": { "type": "integer", "minimum": 0 },
+            "coverage": { "type": "number", "minimum": 0.9, "maximum": 1 },
+            "top_increase": { "type": "array" },
+            "top_decrease": { "type": "array" },
+            "publisher": { "type": "string" },
+            "canonical_url": { "type": "string", "format": "uri" }
+          }
+        },
+        "southbound": { "type": ["object", "null"], "required": ["period", "net_buy_100m_cny", "previous_net_buy_100m_cny", "streak", "publisher", "canonical_url"] },
+        "margin": { "type": ["object", "null"], "required": ["period", "balance_100m_cny", "balance_change_100m_cny", "buy_turnover_pct", "publisher", "canonical_url"] },
+        "sectors": { "type": ["object", "null"], "required": ["period", "increasing", "decreasing", "publisher", "canonical_url"] }
+      },
+      "additionalProperties": false
+    },
     "data_gaps": { "type": "array" },
     "run": { "type": "object" }
   },

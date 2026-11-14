@@ -30,6 +30,26 @@ if (!Array.isArray(snapshot.major_news) || !Array.isArray(snapshot.shipping) || 
 if (snapshot.major_news.length > 9) throw new Error("major_news cannot exceed 9 items");
 const marketDay = snapshot.run?.market_data_date;
 if (!/^\d{4}-\d{2}-\d{2}$/.test(marketDay ?? "")) throw new Error("run.market_data_date is missing or invalid");
+if (snapshot.capital_flows !== undefined) {
+  const flows = snapshot.capital_flows;
+  if (!flows || typeof flows !== "object") throw new Error("capital_flows must be an object");
+  const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value ?? "") && !Number.isNaN(Date.parse(value));
+  if (flows.etf) {
+    if (!isDate(flows.etf.period) || flows.etf.period > marketDay || !isDate(flows.etf.previous_period) || flows.etf.previous_period >= flows.etf.period) {
+      throw new Error("ETF share date is invalid or later than market data date");
+    }
+    if (flows.etf.coverage < 0.9 || flows.etf.coverage > 1 || flows.etf.matched_count < 1 || !Number.isFinite(flows.etf.change_100m_shares)) {
+      throw new Error("ETF share comparison has invalid coverage or change");
+    }
+  }
+  if (flows.sectors) {
+    if (flows.sectors.period !== marketDay) throw new Error("sector activity date does not match market data date");
+    if (!Array.isArray(flows.sectors.increasing) || !Array.isArray(flows.sectors.decreasing)) throw new Error("sector activity lists are invalid");
+  }
+  for (const key of ["southbound", "margin"]) {
+    if (flows[key] && (!isDate(flows[key].period) || flows[key].period > marketDay)) throw new Error(`${key} date is invalid or later than market data date`);
+  }
+}
 const marketActivity = snapshot.metrics.find((metric) => metric.indicator_id === "M1-A01/02");
 if (marketActivity && marketActivity.period.slice(0, 10) !== marketDay) {
   throw new Error(`market activity is stale for ${marketDay}`);

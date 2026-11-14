@@ -56,16 +56,21 @@ test("rejects sector leads or market activity labelled with the wrong trading da
 test("accepts comparable capital-flow records but rejects future or stale sector dates", async () => {
   const snapshot = JSON.parse(await readFile(fixture, "utf8"));
   const marketDay = snapshot.run.market_data_date;
+  const priorDay = new Date(`${marketDay}T00:00:00Z`);
+  priorDay.setUTCDate(priorDay.getUTCDate() - 1);
+  const previousPeriod = priorDay.toISOString().slice(0, 10);
   snapshot.capital_flows = {
-    etf: { period: marketDay, previous_period: "2026-11-12", change_100m_shares: -2.5, coverage: 0.95, matched_count: 500, top_increase: [], top_decrease: [] },
+    etf: { period: marketDay, previous_period: previousPeriod, change_100m_shares: -2.5, coverage: 0.95, matched_count: 500, top_increase: [], top_decrease: [] },
     southbound: { period: marketDay, net_buy_100m_cny: 23.3, streak: 3 },
     margin: null,
     sectors: { period: marketDay, increasing: [], decreasing: [] },
   };
   await validate(snapshot);
-  snapshot.capital_flows.sectors.period = "2026-11-12";
+  snapshot.capital_flows.sectors.period = previousPeriod;
   await assert.rejects(validate(snapshot), /sector activity date/);
   snapshot.capital_flows.sectors.period = marketDay;
-  snapshot.capital_flows.etf.period = "2026-11-20";
+  const futureDay = new Date(`${marketDay}T00:00:00Z`);
+  futureDay.setUTCDate(futureDay.getUTCDate() + 1);
+  snapshot.capital_flows.etf.period = futureDay.toISOString().slice(0, 10);
   await assert.rejects(validate(snapshot), /ETF share date/);
 });
