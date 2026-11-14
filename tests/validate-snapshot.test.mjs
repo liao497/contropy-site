@@ -46,8 +46,9 @@ test("rejects a snapshot when commodity coverage falls below the publication flo
 
 test("allows recorded shipping source outages without blocking the other verified modules", async () => {
   const snapshot = JSON.parse(await readFile(fixture, "utf8"));
-  const routeIds = snapshot.shipping.map((item) => item.route_id);
+  const routeIds = ["chokepoint6", "chokepoint4", "chokepoint1"];
   snapshot.shipping = [];
+  snapshot.data_gaps = snapshot.data_gaps.filter((item) => !item.indicator_id?.startsWith("M8-SHIPPING-"));
   snapshot.data_gaps.push(...routeIds.map((routeId) => ({ indicator_id: `M8-SHIPPING-${routeId}`, reason: "免费源采集失败" })));
   await validate(snapshot);
   snapshot.data_gaps = snapshot.data_gaps.filter((item) => item.indicator_id !== `M8-SHIPPING-${routeIds[0]}`);
@@ -83,4 +84,21 @@ test("accepts comparable capital-flow records but rejects future or stale sector
   futureDay.setUTCDate(futureDay.getUTCDate() + 1);
   snapshot.capital_flows.etf.period = futureDay.toISOString().slice(0, 10);
   await assert.rejects(validate(snapshot), /ETF share date/);
+});
+
+test("requires matched domestic and foreign evidence for a joint flow verdict", async () => {
+  const snapshot = JSON.parse(await readFile(fixture, "utf8"));
+  const marketDay = snapshot.run.market_data_date;
+  snapshot.forward_flows = {
+    market_day: marketDay, horizons: "未来5/20个交易日条件观察",
+    states: { domestic: "待确认", foreign: "待确认", joint: "待确认" },
+    northbound: { period: marketDay, turnover_100m_cny: 900 },
+    foreign_etfs: [], external_conditions: [], method_note: "样本观察",
+  };
+  await validate(snapshot);
+  snapshot.forward_flows.states.joint = "双向支持";
+  await assert.rejects(validate(snapshot), /joint flow verdict/);
+  snapshot.forward_flows.states.joint = "待确认";
+  snapshot.forward_flows.northbound.net_buy_100m_cny = 10;
+  await assert.rejects(validate(snapshot), /mislabeled as net buy/);
 });

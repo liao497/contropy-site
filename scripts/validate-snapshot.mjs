@@ -50,6 +50,29 @@ if (snapshot.capital_flows !== undefined) {
     if (flows[key] && (!isDate(flows[key].period) || flows[key].period > marketDay)) throw new Error(`${key} date is invalid or later than market data date`);
   }
 }
+if (snapshot.forward_flows !== undefined) {
+  const outlook = snapshot.forward_flows;
+  if (!outlook || outlook.market_day !== marketDay || !outlook.states || !Array.isArray(outlook.foreign_etfs) || !Array.isArray(outlook.external_conditions)) {
+    throw new Error("forward_flows structure or market day is invalid");
+  }
+  if (outlook.foreign_etfs.length > 3 || new Set(outlook.foreign_etfs.map((fund) => fund.ticker)).size !== outlook.foreign_etfs.length) {
+    throw new Error("foreign ETF sample contains duplicate or excess funds");
+  }
+  for (const fund of outlook.foreign_etfs) {
+    if (!/^(CNYA|MCHI|FXI)$/.test(fund.ticker) || fund.period > snapshot.report_date || !Number.isInteger(fund.shares) || fund.shares <= 0 || !fund.canonical_url?.startsWith("https://www.ishares.com/")) {
+      throw new Error(`invalid foreign ETF observation: ${fund.ticker}`);
+    }
+    if (fund.change_pct !== null && (fund.previous_period >= fund.period || !Number.isFinite(fund.change_pct))) {
+      throw new Error(`invalid foreign ETF comparison: ${fund.ticker}`);
+    }
+  }
+  if (outlook.northbound && (outlook.northbound.period > marketDay || !Number.isFinite(outlook.northbound.turnover_100m_cny) || "net_buy_100m_cny" in outlook.northbound)) {
+    throw new Error("northbound turnover is invalid or mislabeled as net buy");
+  }
+  if ((outlook.states.joint === "双向支持" && (outlook.states.domestic !== "偏积极" || outlook.states.foreign !== "样本扩张")) || (outlook.states.joint === "双向承压" && (outlook.states.domestic !== "偏谨慎" || outlook.states.foreign !== "样本收缩"))) {
+    throw new Error("joint flow verdict lacks matching domestic and foreign evidence");
+  }
+}
 const marketActivity = snapshot.metrics.find((metric) => metric.indicator_id === "M1-A01/02");
 if (marketActivity && marketActivity.period.slice(0, 10) !== marketDay) {
   throw new Error(`market activity is stale for ${marketDay}`);

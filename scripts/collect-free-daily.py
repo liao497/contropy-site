@@ -24,6 +24,7 @@ import pandas as pd
 import requests
 
 from capital_flow import choose_cached_market_metrics, compute_etf_share_flow, parse_cached_turnover, rank_sector_activity
+from flow_outlook import ISHARES_FUNDS, classify_outlook, parse_ishares_shares, prior_fund_observations
 from signal_engine import crowded_industries, screen_sector_candidates, shipping_risk, summarize_risks
 
 
@@ -1635,6 +1636,81 @@ def archived_market_metrics(report_day: date, market_day: date) -> dict[str, dic
     return choose_cached_market_metrics(snapshots, market_day.isoformat(), ["M1-A05/06/07", "M1-A15/16", "M1-A17/18"])
 
 
+def collect_forward_flows(report_day: date, market_day: date, domestic: dict[str, Any], global_frames: dict[str, pd.DataFrame], gaps: list[dict[str, str]]) -> dict[str, Any]:
+    """Expose evidence and conditional outlook, never a fabricated net capital flow."""
+    prior_snapshots = []
+    paths = [Path("data/current-snapshot.json")]
+    for offset in range(35):
+        archive_day = report_day - timedelta(days=offset)
+        paths.extend((Path("data/snapshots") / archive_day.strftime("%Y") / archive_day.strftime("%m")).glob(f"{archive_day.isoformat()}*.json"))
+    for path in paths:
+        try:
+            item = json.loads(path.read_text(encoding="utf-8"))
+            if item.get("report_date", "") <= report_day.isoformat():
+                prior_snapshots.append(item)
+        except (OSError, ValueError):
+            pass
+
+    foreign_etfs = []
+    for ticker, (exposure, url) in ISHARES_FUNDS.items():
+        try:
+            response = _retry_get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0"}, attempts=2)
+            response.raise_for_status()
+            observed = parse_ishares_shares(response.text)
+            if not observed:
+                raise ValueError("份额或数据日期未披露")
+            period, shares = observed
+            age = (report_day - date.fromisoformat(period)).days
+            if not 0 <= age <= 5:
+                raise ValueError(f"份额数据不在报告日附近：{period}")
+            previous = prior_fund_observations(prior_snapshots, period).get(ticker)
+            previous_period = previous["period"] if previous else None
+            change_pct = round((shares / previous["shares"] - 1) * 100, 2) if previous and (date.fromisoformat(period) - date.fromisoformat(previous_period)).days <= 7 else None
+            foreign_etfs.append({"ticker": ticker, "exposure": exposure, "period": period, "shares": shares, "previous_period": previous_period, "change_pct": change_pct, "publisher": "iShares / BlackRock", "canonical_url": url})
+        except (requests.RequestException, ValueError, KeyError) as exc:
+            gaps.append({"indicator_id": f"FF-{ticker}", "reason": f"境外ETF发行人份额暂不可用：{type(exc).__name__}"})
+
+    northbound = None
+    north_url = "https://www.sse.com.cn/services/hkexsc/hgtscsj/hgtcjgk/"
+    history = []
+    for offset in range(7):
+        day = market_day - timedelta(days=offset)
+        if day.weekday() >= 5:
+            continue
+        try:
+            response = _retry_get("https://query.sse.com.cn/commonSoaQuery.do", params={"sqlId": "FW_HGTZL_HGTSCSJ_HGTCJGK_MRTJ", "tradeDate": day.strftime("%Y%m%d")}, headers={"Referer": north_url, "User-Agent": "Mozilla/5.0"}, timeout=12, attempts=2)
+            response.raise_for_status()
+            rows = response.json().get("result", [])
+            if rows and rows[0].get("tradeDate") == day.strftime("%Y%m%d"):
+                amount = float(rows[0]["totalAmount"].replace(",", ""))
+                if amount > 0:
+                    history.append((day, amount))
+            if len(history) >= 2:
+                break
+        except (requests.RequestException, ValueError, KeyError, IndexError):
+            continue
+    if history:
+        latest_day, latest_amount = history[0]
+        northbound = {"period": latest_day.isoformat(), "turnover_100m_cny": round(latest_amount, 2), "previous_period": history[1][0].isoformat() if len(history) > 1 else None, "change_pct": round((latest_amount / history[1][1] - 1) * 100, 2) if len(history) > 1 else None, "scope": "沪股通成交总额；仅上海，不含深股通；无买卖方向", "publisher": "上海证券交易所", "canonical_url": north_url}
+    else:
+        gaps.append({"indicator_id": "FF-NORTH-TURNOVER", "reason": "上交所沪股通成交总额暂不可用"})
+
+    conditions = []
+    for series, label, unit in [("DEXCHUS", "美元兑人民币", "%"), ("DFII10", "美国10年实际利率", "百分点"), ("VIXCLS", "VIX", "点")]:
+        frame = global_frames.get(series)
+        if frame is None or len(frame) < 6:
+            continue
+        latest, earlier = frame.iloc[-1], frame.iloc[-6]
+        latest_day = latest["date"].date()
+        if not 0 <= (report_day - latest_day).days <= 5:
+            continue
+        change = (float(latest["value"]) / float(earlier["value"]) - 1) * 100 if unit == "%" else float(latest["value"]) - float(earlier["value"])
+        conditions.append({"label": label, "period": latest_day.isoformat(), "value": round(float(latest["value"]), 4), "change_5d": round(change, 2), "unit": unit, "publisher": "FRED", "canonical_url": f"https://fred.stlouisfed.org/series/{series}"})
+
+    states = classify_outlook(domestic, foreign_etfs, report_day.isoformat())
+    return {"market_day": market_day.isoformat(), "horizons": "未来5/20个交易日条件观察", "states": states, "northbound": northbound, "foreign_etfs": foreign_etfs, "external_conditions": conditions, "method_note": "境内ETF份额、两融和南向净买额为不同维度；境外ETF仅为3只发行人样本。沪股通总成交额没有买卖方向。汇率、实际利率和VIX是外资配置条件，不是实际资金流。未用样本变化推算全市场净流入或未来收益。"}
+
+
 def build_snapshot(report_day: date, revision: str = "r1", market_day: date | None = None) -> dict[str, Any]:
     now = datetime.now(SHANGHAI)
     market_day = market_day or completed_market_day(report_day, now)
@@ -1683,6 +1759,8 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
         "publisher": f"同花顺行业指数 / {industry_rows[0]['share_basis']}",
         "canonical_url": "https://q.10jqka.com.cn/thshy/",
     } if sector_activity["increasing"] or sector_activity["decreasing"] else None
+    capital_flows = {"etf": etf_flow, "southbound": southbound_flow, "margin": margin_flow, "sectors": sector_flow}
+    forward_flows = collect_forward_flows(report_day, market_day, capital_flows, global_frames, gaps)
     add_sentiment(market_day, retrieved_at, global_frames, metrics, gaps)
     major_news = collect_major_news(report_day, retrieved_at, gaps)
     shipping = collect_shipping(report_day, retrieved_at, gaps)
@@ -1745,7 +1823,8 @@ def build_snapshot(report_day: date, revision: str = "r1", market_day: date | No
         "major_news": major_news,
         "shipping": shipping,
         "commodities": commodities,
-        "capital_flows": {"etf": etf_flow, "southbound": southbound_flow, "margin": margin_flow, "sectors": sector_flow},
+        "capital_flows": capital_flows,
+        "forward_flows": forward_flows,
         "data_gaps": gaps,
         "run": {
             "run_id": f"free-source-test-{report_day.isoformat()}-{revision}",

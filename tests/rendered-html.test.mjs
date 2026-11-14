@@ -53,6 +53,13 @@ test("server-renders the metric-only real daily dashboard", async () => {
   assert.match(html, new RegExp(`${escapeRegExp(snapshot.run.risk_level)}|行情滞后 · 判断受限`));
   assert.match(html, /机会线索/);
   assert.match(html, /资金流向/);
+  if (snapshot.forward_flows) {
+    assert.match(html, /未来资金方向/);
+    assert.match(html, /境内资金/);
+    assert.match(html, /境外资金样本/);
+    assert.match(html, /展开外资证据与确认条件/);
+    assert.match(html, /沪股通成交总额/);
+  }
   assert.match(html, /板块成交占比/);
   assert.match(html, /北向日净买额/);
   assert.match(html, /重大新闻/);

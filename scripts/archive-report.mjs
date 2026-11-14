@@ -58,6 +58,30 @@ ${sectors ? `- 占比上升：${sectorRanks(sectors.increasing)}。\n- 占比下
 > ETF份额变化是申赎方向代理；两融变化反映杠杆活动；板块成交占比变化反映相对交易活跃度。三者均不等同于净资金流入。`;
 }
 
+function forwardFlowReport(outlook) {
+  if (!outlook) return "- 本期未取得可比较的境内外资金证据。";
+  const fundRows = outlook.foreign_etfs.map((fund) => `| [${cell(fund.ticker)}](${cell(fund.canonical_url)}) | ${cell(fund.exposure)} | ${cell(fund.period)} | ${cell(fund.shares)} | ${fund.change_pct === null ? "尚无前期可比" : `${signed(fund.change_pct)}%`} |`).join("\n") || "| — | — | — | — | — |";
+  const conditions = outlook.external_conditions.map((item) => `- [${cell(item.label)}](${cell(item.canonical_url)})：${cell(item.value)}，近5个有效日${signed(item.change_5d)}${cell(item.unit)}；数据日${cell(item.period)}。`).join("\n") || "- 暂不可用。";
+  return `- 境内：**${cell(outlook.states.domestic)}**；境外ETF样本：**${cell(outlook.states.foreign)}**；两侧合看：**${cell(outlook.states.joint)}**。
+- 观察窗口：${cell(outlook.horizons)}；A股行情日：${cell(outlook.market_day)}。
+
+### 境外中国股票ETF发行人份额
+
+| 基金 | 覆盖 | 数据日 | 流通份额 | 较前期 |
+|---|---|---|---:|---:|
+${fundRows}
+
+### 沪股通成交总额
+
+${outlook.northbound ? `- [${cell(outlook.northbound.publisher)}](${cell(outlook.northbound.canonical_url)})：${cell(outlook.northbound.turnover_100m_cny)}亿元；较前期${outlook.northbound.change_pct === null ? "暂无可比" : `${signed(outlook.northbound.change_pct)}%`}；数据日${cell(outlook.northbound.period)}；${cell(outlook.northbound.scope)}。` : "- 本期暂不可用。"}
+
+### 境外配置条件
+
+${conditions}
+
+> ${cell(outlook.method_note)}`;
+}
+
 function renderReport(snapshot) {
   const reportSession = snapshot.run.revision_id === "close" ? "收盘" : "晨间";
   const market = sectionMetrics(snapshot, "M1-");
@@ -72,6 +96,7 @@ function renderReport(snapshot) {
   const shipping = snapshot.shipping ?? [];
   const commodities = snapshot.commodities ?? [];
   const capitalFlows = snapshot.capital_flows;
+  const forwardFlows = snapshot.forward_flows;
   const table = (rows) => `| 指标 | 最新数据 | 上一日/期 | 同比情况 | 解读 |\n|---|---:|---:|---:|---|\n${metricRows(rows)}`;
 
   return `# ${snapshot.report_date} ${reportSession}行业投资看板
@@ -105,6 +130,10 @@ ${table(market)}
 ## 资金流向与活跃度
 
 ${capitalFlowReport(capitalFlows)}
+
+## 未来资金方向观察
+
+${forwardFlowReport(forwardFlows)}
 
 ## 宏观、利率与政策预期
 

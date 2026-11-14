@@ -94,3 +94,23 @@ test("archives capital-flow measures with their proxy labels", async () => {
   assert.match(report, /板块成交占比迁移/);
   assert.match(report, /不等同于净资金流入/);
 });
+
+test("archives foreign fund evidence without calling turnover net inflow", async () => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "forward-flow-"));
+  const fixture = JSON.parse(await readFile(new URL("fixtures/demo-snapshot.json", import.meta.url), "utf8"));
+  fixture.forward_flows = {
+    market_day: "2026-08-18", horizons: "未来5/20个交易日条件观察",
+    states: { domestic: "待确认", foreign: "待确认", joint: "待确认" },
+    northbound: { period: "2026-08-18", turnover_100m_cny: 900, change_pct: 2, scope: "沪股通成交总额；无买卖方向", publisher: "上海证券交易所", canonical_url: "https://www.sse.com.cn/services/hkexsc/hgtscsj/hgtcjgk/" },
+    foreign_etfs: [{ ticker: "CNYA", exposure: "A股", period: "2026-08-18", shares: 1000000, change_pct: null, canonical_url: "https://www.ishares.com/us/products/273318/ishares-msci-china-a-etf" }],
+    external_conditions: [], method_note: "ETF仅为发行人样本。",
+  };
+  const fixturePath = path.join(output, "forward-fixture.json");
+  await writeFile(fixturePath, `${JSON.stringify(fixture)}\n`);
+  const result = spawnSync(process.execPath, [new URL("../scripts/archive-report.mjs", import.meta.url).pathname, fixturePath, output], { cwd: projectRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  const report = await readFile(path.join(output, "reports/daily/2026/08/2026-08-19.md"), "utf8");
+  assert.match(report, /未来资金方向观察/);
+  assert.match(report, /CNYA/);
+  assert.match(report, /沪股通成交总额；无买卖方向/);
+});

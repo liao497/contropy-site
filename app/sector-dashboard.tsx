@@ -93,6 +93,15 @@ type CapitalFlows = {
   margin: { period: string; balance_100m_cny: number; balance_change_100m_cny: number; buy_turnover_pct: number | null; publisher: string; canonical_url: string } | null;
   sectors: { period: string; increasing: SectorActivity[]; decreasing: SectorActivity[]; basis?: string; publisher: string; canonical_url: string } | null;
 };
+type ForwardFlows = {
+  market_day: string;
+  horizons: string;
+  states: { domestic: string; foreign: string; joint: string };
+  northbound: { period: string; turnover_100m_cny: number; previous_period: string | null; change_pct: number | null; scope: string; publisher: string; canonical_url: string } | null;
+  foreign_etfs: Array<{ ticker: string; exposure: string; period: string; shares: number; previous_period: string | null; change_pct: number | null; publisher: string; canonical_url: string }>;
+  external_conditions: Array<{ label: string; period: string; value: number; change_5d: number; unit: string; publisher: string; canonical_url: string }>;
+  method_note: string;
+};
 
 type Snapshot = {
   report_date: string;
@@ -111,6 +120,7 @@ type Snapshot = {
   shipping?: ShippingFlow[];
   commodities?: CommodityQuote[];
   capital_flows?: CapitalFlows;
+  forward_flows?: ForwardFlows;
   data_gaps: Array<{ indicator_id: string; reason: string }>;
   run: { top_call: string; risk_level: string; coverage_note: string; market_data_date?: string };
 };
@@ -250,6 +260,35 @@ function CapitalFlowSection({ flows, metrics }: { flows?: CapitalFlows; metrics:
         <p>成交占比变化只是相对交易活跃度，不等同于净资金流入。</p>
       </article>
     </div>
+  </section>;
+}
+
+function ForwardFlowSection({ outlook, flows }: { outlook?: ForwardFlows; flows?: CapitalFlows }) {
+  if (!outlook) return null;
+  const jointTone = outlook.states.joint === "双向支持" ? "positive" : outlook.states.joint === "双向承压" ? "danger" : "warning";
+  return <section className="s-section s-forward-flow" aria-label="未来资金方向观察">
+    <div className="s-section-heading"><h2>未来资金方向</h2><span>{outlook.horizons} · 条件判断</span></div>
+    <div className="s-forward-flow-grid">
+      <article className={`s-forward-flow-card s-forward-flow-card--${outlook.states.domestic === "偏积极" ? "positive" : outlook.states.domestic === "偏谨慎" ? "danger" : "warning"}`}>
+        <span>境内资金</span><strong>{outlook.states.domestic}</strong>
+        <p>ETF份额{flows?.etf ? `${flows.etf.change_pct > 0 ? "+" : ""}${flows.etf.change_pct}%` : "待更新"} · 两融{flows?.margin ? `${flows.margin.balance_change_100m_cny > 0 ? "+" : ""}${flows.margin.balance_change_100m_cny}亿元` : "待更新"} · 南向{flows?.southbound ? `${flows.southbound.net_buy_100m_cny > 0 ? "+" : ""}${flows.southbound.net_buy_100m_cny}亿元` : "待更新"}</p>
+      </article>
+      <article className={`s-forward-flow-card s-forward-flow-card--${outlook.states.foreign === "样本扩张" ? "positive" : outlook.states.foreign === "样本收缩" ? "danger" : "warning"}`}>
+        <span>境外资金样本</span><strong>{outlook.states.foreign}</strong>
+        <p>{outlook.foreign_etfs.length}只中国股票ETF发行人份额 · {outlook.foreign_etfs.filter((item) => item.change_pct !== null).length}只可比</p>
+      </article>
+      <article className={`s-forward-flow-card s-forward-flow-card--${jointTone}`}>
+        <span>两侧合看</span><strong>{outlook.states.joint}</strong>
+        <p>5日看同向变化；20日需连续样本确认。分歧时降低资金方向判断权重。</p>
+      </article>
+    </div>
+    <details className="s-forward-flow-detail"><summary>展开外资证据与确认条件</summary>
+      <div className="s-forward-flow-detail-grid">
+        <div><h3>境外ETF发行人份额</h3>{outlook.foreign_etfs.length ? outlook.foreign_etfs.map((item) => <p key={item.ticker}><a href={item.canonical_url} target="_blank" rel="noreferrer">{item.ticker}</a> · {item.exposure} · {formatNumber(item.shares)}份 · {item.change_pct === null ? "尚无前期可比" : `${item.change_pct > 0 ? "+" : ""}${item.change_pct}%`} · {item.period}</p>) : <p>发行人样本暂不可用。</p>}</div>
+        <div><h3>沪股通交易活跃度</h3>{outlook.northbound ? <p><a href={outlook.northbound.canonical_url} target="_blank" rel="noreferrer">{outlook.northbound.publisher}</a> · {formatNumber(outlook.northbound.turnover_100m_cny)}亿元 · {outlook.northbound.change_pct === null ? "暂无前期可比" : `较前期${outlook.northbound.change_pct > 0 ? "+" : ""}${outlook.northbound.change_pct}%`} · {outlook.northbound.period}。{outlook.northbound.scope}。</p> : <p>沪股通成交总额暂不可用。</p>}<h3>外部配置条件 · 近5个有效日</h3>{outlook.external_conditions.map((item) => <p key={item.label}><a href={item.canonical_url} target="_blank" rel="noreferrer">{item.label}</a> {formatNumber(item.value)} · 变化{item.change_5d > 0 ? "+" : ""}{item.change_5d}{item.unit} · {item.period}</p>)}</div>
+      </div>
+      <p className="s-forward-flow-note">确认：境内至少两项同向；境外需 CNYA 与另一只中国股票ETF样本同向。{outlook.method_note}</p>
+    </details>
   </section>;
 }
 
@@ -399,7 +438,7 @@ export function SectorDashboard() {
         {core.map((item) => <MetricCard metric={item} key={item.indicator_id} />)}
       </section>
 
-      <CapitalFlowSection flows={snapshot.capital_flows} metrics={snapshot.metrics} />
+      <ForwardFlowSection outlook={snapshot.forward_flows} flows={snapshot.capital_flows} />
 
       {snapshot.events.length || headlineNews.length ? <section className="s-section s-next-section">
         <div className="s-section-heading"><h2>接下来关注</h2><span>重要催化与异动</span></div>
@@ -411,6 +450,7 @@ export function SectorDashboard() {
 
       <section className="s-section s-support-section">
         <div className="s-section-heading"><h2>更多数据</h2><span>按需展开 · 完整来源与历史对比</span></div>
+        <details className="s-detail"><summary><strong>当期资金流向与行业活跃度</strong><span>ETF · 南向 · 两融 · 行业</span></summary><CapitalFlowSection flows={snapshot.capital_flows} metrics={snapshot.metrics} /></details>
         <details className="s-detail"><summary><strong>重大新闻与航运要道</strong><span>{majorNews.length}条新闻 · {shipping.length}条航道</span></summary><MajorNewsSection news={majorNews} shipping={shipping} /></details>
         <details className="s-detail"><summary><strong>主要大宗商品</strong><span>{commodities.length}种期货</span></summary><CommoditySection commodities={commodities} /></details>
         <details className="s-detail"><summary><strong>跨市场情绪</strong><span>狂热为逆向风险</span></summary><section className="s-section s-sentiment-section"><div className="s-sentiment-grid">{sentiment.map((item) => <SentimentCard metric={item} key={item.indicator_id} />)}</div><p className="s-sentiment-note">极度悲观仅提示潜在反转窗口，不构成买入信号；狂热或一致乐观时提高风险提示等级。</p></section></details>

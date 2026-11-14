@@ -121,6 +121,29 @@
       },
       "additionalProperties": false
     },
+    "forward_flows": {
+      "type": "object",
+      "required": ["market_day", "horizons", "states", "northbound", "foreign_etfs", "external_conditions", "method_note"],
+      "properties": {
+        "market_day": { "type": "string", "format": "date" },
+        "horizons": { "type": "string" },
+        "states": {
+          "type": "object",
+          "required": ["domestic", "foreign", "joint"],
+          "properties": {
+            "domestic": { "enum": ["偏积极", "偏谨慎", "待确认"] },
+            "foreign": { "enum": ["样本扩张", "样本收缩", "分歧", "待确认"] },
+            "joint": { "enum": ["双向支持", "双向承压", "待确认"] }
+          },
+          "additionalProperties": false
+        },
+        "northbound": { "type": ["object", "null"] },
+        "foreign_etfs": { "type": "array", "maxItems": 3 },
+        "external_conditions": { "type": "array", "maxItems": 3 },
+        "method_note": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
     "data_gaps": { "type": "array" },
     "run": { "type": "object" }
   },
