@@ -53,12 +53,13 @@ test("server-renders the metric-only real daily dashboard", async () => {
   assert.match(html, new RegExp(`${escapeRegExp(snapshot.run.risk_level)}|行情滞后 · 判断受限`));
   assert.match(html, /机会线索/);
   assert.match(html, /资金流向/);
-  if (snapshot.forward_flows) {
+  if (snapshot.forward_flows?.windows?.length) {
     assert.match(html, /未来资金方向/);
-    assert.match(html, /境内资金/);
-    assert.match(html, /境外资金样本/);
-    assert.match(html, /展开外资证据与确认条件/);
-    assert.match(html, /沪股通成交总额/);
+    assert.match(html, /A股 · ETF份额与融资余额/);
+    assert.match(html, /港股通 · 内地资金南向成交/);
+    assert.match(html, /外资 · 配置条件与沪股通活跃度/);
+    assert.match(html, /近5 \/ 10 \/ 20个交易日/);
+    assert.match(html, /数据来源与判断边界/);
   }
   assert.match(html, /板块成交占比/);
   assert.match(html, /北向日净买额/);

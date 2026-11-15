@@ -52,26 +52,27 @@ if (snapshot.capital_flows !== undefined) {
 }
 if (snapshot.forward_flows !== undefined) {
   const outlook = snapshot.forward_flows;
-  if (!outlook || outlook.market_day !== marketDay || !outlook.states || !Array.isArray(outlook.foreign_etfs) || !Array.isArray(outlook.external_conditions)) {
+  if (!outlook || outlook.market_day !== marketDay || !outlook.verdict?.headline || !outlook.verdict?.hong_kong || !Array.isArray(outlook.windows) || outlook.windows.length !== 3) {
     throw new Error("forward_flows structure or market day is invalid");
   }
-  if (outlook.foreign_etfs.length > 3 || new Set(outlook.foreign_etfs.map((fund) => fund.ticker)).size !== outlook.foreign_etfs.length) {
-    throw new Error("foreign ETF sample contains duplicate or excess funds");
-  }
-  for (const fund of outlook.foreign_etfs) {
-    if (!/^(CNYA|MCHI|FXI)$/.test(fund.ticker) || fund.period > snapshot.report_date || !Number.isInteger(fund.shares) || fund.shares <= 0 || !fund.canonical_url?.startsWith("https://www.ishares.com/")) {
-      throw new Error(`invalid foreign ETF observation: ${fund.ticker}`);
+  if (outlook.windows.map((item) => item.days).join(",") !== "5,10,20") throw new Error("forward flow windows must be 5, 10, 20 days");
+  for (const row of outlook.windows) {
+    if (row.to_period !== marketDay || row.from_period >= marketDay) throw new Error(`forward flow window ${row.days} has invalid dates`);
+    if (row.equity_etf && (row.equity_etf.coverage < 0.9 || row.equity_etf.coverage > 1 || row.equity_etf.matched_count < 1 || !Number.isFinite(row.equity_etf.change_pct))) {
+      throw new Error(`forward flow window ${row.days} has invalid ETF comparison`);
     }
-    if (fund.change_pct !== null && (fund.previous_period >= fund.period || !Number.isFinite(fund.change_pct))) {
-      throw new Error(`invalid foreign ETF comparison: ${fund.ticker}`);
+    if (row.margin && (row.margin.from_period >= row.margin.to_period || row.margin.to_period > marketDay || !Number.isFinite(row.margin.balance_change_100m_cny))) {
+      throw new Error(`forward flow window ${row.days} has invalid margin comparison`);
+    }
+    if (row.southbound && (row.southbound.to_period > marketDay || !Number.isFinite(row.southbound.net_buy_100m_cny))) {
+      throw new Error(`forward flow window ${row.days} has invalid southbound sum`);
+    }
+    if (row.northbound && (row.northbound.observations !== row.days || !Number.isFinite(row.northbound.avg_turnover_100m_cny) || "net_buy_100m_cny" in row.northbound)) {
+      throw new Error(`forward flow window ${row.days} has invalid or mislabeled northbound turnover`);
     }
   }
-  if (outlook.northbound && (outlook.northbound.period > marketDay || !Number.isFinite(outlook.northbound.turnover_100m_cny) || "net_buy_100m_cny" in outlook.northbound)) {
-    throw new Error("northbound turnover is invalid or mislabeled as net buy");
-  }
-  if ((outlook.states.joint === "双向支持" && (outlook.states.domestic !== "偏积极" || outlook.states.foreign !== "样本扩张")) || (outlook.states.joint === "双向承压" && (outlook.states.domestic !== "偏谨慎" || outlook.states.foreign !== "样本收缩"))) {
-    throw new Error("joint flow verdict lacks matching domestic and foreign evidence");
-  }
+  if (/南向|港股通/.test(outlook.verdict.domestic)) throw new Error("A-share flow verdict may not include southbound transactions");
+  if (/外资净(买|卖|流)/.test(outlook.verdict.headline + outlook.verdict.foreign_environment)) throw new Error("foreign environment may not be stated as observed net flow");
 }
 const marketActivity = snapshot.metrics.find((metric) => metric.indicator_id === "M1-A01/02");
 if (marketActivity && marketActivity.period.slice(0, 10) !== marketDay) {

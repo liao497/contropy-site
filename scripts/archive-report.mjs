@@ -59,25 +59,22 @@ ${sectors ? `- 占比上升：${sectorRanks(sectors.increasing)}。\n- 占比下
 }
 
 function forwardFlowReport(outlook) {
-  if (!outlook) return "- 本期未取得可比较的境内外资金证据。";
-  const fundRows = outlook.foreign_etfs.map((fund) => `| [${cell(fund.ticker)}](${cell(fund.canonical_url)}) | ${cell(fund.exposure)} | ${cell(fund.period)} | ${cell(fund.shares)} | ${fund.change_pct === null ? "尚无前期可比" : `${signed(fund.change_pct)}%`} |`).join("\n") || "| — | — | — | — | — |";
-  const conditions = outlook.external_conditions.map((item) => `- [${cell(item.label)}](${cell(item.canonical_url)})：${cell(item.value)}，近5个有效日${signed(item.change_5d)}${cell(item.unit)}；数据日${cell(item.period)}。`).join("\n") || "- 暂不可用。";
-  return `- 境内：**${cell(outlook.states.domestic)}**；境外ETF样本：**${cell(outlook.states.foreign)}**；两侧合看：**${cell(outlook.states.joint)}**。
-- 观察窗口：${cell(outlook.horizons)}；A股行情日：${cell(outlook.market_day)}。
+  if (!outlook?.windows) return "- 本期未取得多期可比资金证据。";
+  const signedOrDash = (value, suffix) => value === null || value === undefined ? "—" : `${signed(value)}${suffix}`;
+  const rows = outlook.windows.map((item) => `| ${item.days}日 | ${signedOrDash(item.equity_etf?.change_100m_shares, "亿份")}（${signedOrDash(item.equity_etf?.change_pct, "%")}） | ${signedOrDash(item.margin?.balance_change_100m_cny, "亿元")}（截至${cell(item.margin?.to_period)}） | ${signedOrDash(item.southbound?.net_buy_100m_cny, "亿元")} | ${signedOrDash(item.northbound?.avg_turnover_100m_cny, "亿元")} | ${signedOrDash(item.foreign_conditions?.real_yield_change_pp, "百分点")} / ${signedOrDash(item.foreign_conditions?.vix_change_points, "点")} |`).join("\n");
+  const sources = Object.entries(outlook.sources).map(([key, url]) => `- ${cell(key)}：[来源](${cell(url)})`).join("\n");
+  return `**结论：${cell(outlook.verdict.headline)}**
 
-### 境外中国股票ETF发行人份额
+- A股：${cell(outlook.verdict.domestic)}。
+- 港股通：${cell(outlook.verdict.hong_kong)}。
+- 外资配置环境：${cell(outlook.verdict.foreign_environment)}；${cell(outlook.verdict.participation)}。北向成交额不含买卖方向。
+- A股行情日：${cell(outlook.market_day)}。
 
-| 基金 | 覆盖 | 数据日 | 流通份额 | 较前期 |
-|---|---|---|---:|---:|
-${fundRows}
+| 区间 | 境内权益ETF份额 | 融资余额 | 南向成交净买额 | 沪股通日均成交总额 | 美国实际利率 / VIX变化 |
+|---|---:|---:|---:|---:|---:|
+${rows}
 
-### 沪股通成交总额
-
-${outlook.northbound ? `- [${cell(outlook.northbound.publisher)}](${cell(outlook.northbound.canonical_url)})：${cell(outlook.northbound.turnover_100m_cny)}亿元；较前期${outlook.northbound.change_pct === null ? "暂无可比" : `${signed(outlook.northbound.change_pct)}%`}；数据日${cell(outlook.northbound.period)}；${cell(outlook.northbound.scope)}。` : "- 本期暂不可用。"}
-
-### 境外配置条件
-
-${conditions}
+${sources}
 
 > ${cell(outlook.method_note)}`;
 }

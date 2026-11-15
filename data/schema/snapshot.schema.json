@@ -123,23 +123,40 @@
     },
     "forward_flows": {
       "type": "object",
-      "required": ["market_day", "horizons", "states", "northbound", "foreign_etfs", "external_conditions", "method_note"],
+      "required": ["market_day", "windows", "verdict", "sources", "method_note"],
       "properties": {
         "market_day": { "type": "string", "format": "date" },
-        "horizons": { "type": "string" },
-        "states": {
+        "windows": {
+          "type": "array", "minItems": 3, "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["days", "from_period", "to_period", "equity_etf", "margin", "southbound", "northbound", "foreign_conditions"],
+            "properties": {
+              "days": { "enum": [5, 10, 20] },
+              "from_period": { "type": "string", "format": "date" },
+              "to_period": { "type": "string", "format": "date" },
+              "equity_etf": { "type": ["object", "null"] },
+              "margin": { "type": ["object", "null"] },
+              "southbound": { "type": ["object", "null"] },
+              "northbound": { "type": ["object", "null"] },
+              "foreign_conditions": { "type": "object" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "verdict": {
           "type": "object",
-          "required": ["domestic", "foreign", "joint"],
+          "required": ["domestic", "hong_kong", "foreign_environment", "participation", "headline"],
           "properties": {
-            "domestic": { "enum": ["偏积极", "偏谨慎", "待确认"] },
-            "foreign": { "enum": ["样本扩张", "样本收缩", "分歧", "待确认"] },
-            "joint": { "enum": ["双向支持", "双向承压", "待确认"] }
+            "domestic": { "type": "string" },
+            "hong_kong": { "type": "string" },
+            "foreign_environment": { "type": "string" },
+            "participation": { "type": "string" },
+            "headline": { "type": "string" }
           },
           "additionalProperties": false
         },
-        "northbound": { "type": ["object", "null"] },
-        "foreign_etfs": { "type": "array", "maxItems": 3 },
-        "external_conditions": { "type": "array", "maxItems": 3 },
+        "sources": { "type": "object" },
         "method_note": { "type": "string" }
       },
       "additionalProperties": false

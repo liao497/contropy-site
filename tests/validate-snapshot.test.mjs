@@ -86,19 +86,19 @@ test("accepts comparable capital-flow records but rejects future or stale sector
   await assert.rejects(validate(snapshot), /ETF share date/);
 });
 
-test("requires matched domestic and foreign evidence for a joint flow verdict", async () => {
+test("requires three valid windows and does not convert turnover into foreign net purchases", async () => {
   const snapshot = JSON.parse(await readFile(fixture, "utf8"));
   const marketDay = snapshot.run.market_data_date;
   snapshot.forward_flows = {
-    market_day: marketDay, horizons: "未来5/20个交易日条件观察",
-    states: { domestic: "待确认", foreign: "待确认", joint: "待确认" },
-    northbound: { period: marketDay, turnover_100m_cny: 900 },
-    foreign_etfs: [], external_conditions: [], method_note: "样本观察",
+    market_day: marketDay,
+    windows: [5, 10, 20].map((days) => ({ days, from_period: "2026-10-01", to_period: marketDay, equity_etf: { change_pct: 0.5, coverage: 0.98, matched_count: 400 }, margin: null, southbound: null, northbound: { observations: days, avg_turnover_100m_cny: 900 }, foreign_conditions: {} })),
+    verdict: { domestic: "权益ETF持续增份额", hong_kong: "南向多期成交数据不足", foreign_environment: "外资配置环境证据不足", participation: "沪股通活跃度回升", headline: "资金观察" },
+    sources: {}, method_note: "沪股通成交无方向",
   };
   await validate(snapshot);
-  snapshot.forward_flows.states.joint = "双向支持";
-  await assert.rejects(validate(snapshot), /joint flow verdict/);
-  snapshot.forward_flows.states.joint = "待确认";
-  snapshot.forward_flows.northbound.net_buy_100m_cny = 10;
-  await assert.rejects(validate(snapshot), /mislabeled as net buy/);
+  snapshot.forward_flows.windows[0].northbound.net_buy_100m_cny = 10;
+  await assert.rejects(validate(snapshot), /mislabeled northbound turnover/);
+  delete snapshot.forward_flows.windows[0].northbound.net_buy_100m_cny;
+  snapshot.forward_flows.windows[1].days = 6;
+  await assert.rejects(validate(snapshot), /must be 5, 10, 20/);
 });

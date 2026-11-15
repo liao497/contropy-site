@@ -24,7 +24,7 @@ import pandas as pd
 import requests
 
 from capital_flow import choose_cached_market_metrics, compute_etf_share_flow, parse_cached_turnover, rank_sector_activity
-from flow_outlook import ISHARES_FUNDS, classify_outlook, parse_ishares_shares, prior_fund_observations
+from flow_outlook import WINDOWS, domestic_equity_etfs, interpret_windows
 from signal_engine import crowded_industries, screen_sector_candidates, shipping_risk, summarize_risks
 
 
@@ -755,6 +755,7 @@ def add_southbound(report_day: date, retrieved_at: str, metrics: list[dict[str, 
         "previous_net_buy_100m_cny": round(float(previous["当日成交净买额"]), 2),
         "streak": streak, "publisher": "东方财富（AKShare采集）",
         "canonical_url": "https://data.eastmoney.com/hsgt/index.html",
+        "window_sums_100m_cny": {str(days): round(float(frame["当日成交净买额"].tail(days).sum()), 2) if len(frame) >= days else None for days in WINDOWS},
     }
 
 
@@ -1637,46 +1638,46 @@ def archived_market_metrics(report_day: date, market_day: date) -> dict[str, dic
 
 
 def collect_forward_flows(report_day: date, market_day: date, domestic: dict[str, Any], global_frames: dict[str, pd.DataFrame], gaps: list[dict[str, str]]) -> dict[str, Any]:
-    """Expose evidence and conditional outlook, never a fabricated net capital flow."""
-    prior_snapshots = []
-    paths = [Path("data/current-snapshot.json")]
-    for offset in range(35):
-        archive_day = report_day - timedelta(days=offset)
-        paths.extend((Path("data/snapshots") / archive_day.strftime("%Y") / archive_day.strftime("%m")).glob(f"{archive_day.isoformat()}*.json"))
-    for path in paths:
-        try:
-            item = json.loads(path.read_text(encoding="utf-8"))
-            if item.get("report_date", "") <= report_day.isoformat():
-                prior_snapshots.append(item)
-        except (OSError, ValueError):
-            pass
+    """Build 5/10/20-session evidence, keeping flow, activity and conditions separate."""
+    calendar = sorted(item for item in ak.tool_trade_date_hist_sina()["trade_date"].tolist() if item <= market_day)
+    if len(calendar) < max(WINDOWS) + 1 or calendar[-1] != market_day:
+        raise RuntimeError("无法取得足够A股交易日计算多期资金窗口")
+    dates = {days: calendar[-1 - days] for days in WINDOWS}
+    etf_windows: dict[int, dict[str, Any] | None] = {}
+    try:
+        current_etfs = domestic_equity_etfs(ak.fund_etf_scale_sse(date=market_day.strftime("%Y%m%d")).to_dict("records"))
+        for days, baseline_day in dates.items():
+            try:
+                prior_etfs = domestic_equity_etfs(ak.fund_etf_scale_sse(date=baseline_day.strftime("%Y%m%d")).to_dict("records"))
+                etf_windows[days] = compute_etf_share_flow(current_etfs, prior_etfs, market_day.isoformat(), baseline_day.isoformat())
+            except Exception:
+                etf_windows[days] = None
+                gaps.append({"indicator_id": f"FF-ETF-{days}", "reason": "上交所可比境内权益ETF历史份额暂不可用"})
+    except Exception:
+        etf_windows = {days: None for days in WINDOWS}
+        gaps.append({"indicator_id": "FF-ETF", "reason": "上交所境内权益ETF最新份额暂不可用"})
 
-    foreign_etfs = []
-    for ticker, (exposure, url) in ISHARES_FUNDS.items():
-        try:
-            response = _retry_get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0"}, attempts=2)
-            response.raise_for_status()
-            observed = parse_ishares_shares(response.text)
-            if not observed:
-                raise ValueError("份额或数据日期未披露")
-            period, shares = observed
-            age = (report_day - date.fromisoformat(period)).days
-            if not 0 <= age <= 5:
-                raise ValueError(f"份额数据不在报告日附近：{period}")
-            previous = prior_fund_observations(prior_snapshots, period).get(ticker)
-            previous_period = previous["period"] if previous else None
-            change_pct = round((shares / previous["shares"] - 1) * 100, 2) if previous and (date.fromisoformat(period) - date.fromisoformat(previous_period)).days <= 7 else None
-            foreign_etfs.append({"ticker": ticker, "exposure": exposure, "period": period, "shares": shares, "previous_period": previous_period, "change_pct": change_pct, "publisher": "iShares / BlackRock", "canonical_url": url})
-        except (requests.RequestException, ValueError, KeyError) as exc:
-            gaps.append({"indicator_id": f"FF-{ticker}", "reason": f"境外ETF发行人份额暂不可用：{type(exc).__name__}"})
+    margin_windows: dict[int, dict[str, Any] | None] = {days: None for days in WINDOWS}
+    margin = domestic.get("margin")
+    if margin and 0 <= (market_day - date.fromisoformat(margin["period"])).days <= 4:
+        margin_day = date.fromisoformat(margin["period"])
+        margin_calendar = [day for day in calendar if day <= margin_day]
+        if len(margin_calendar) > max(WINDOWS):
+            for days in WINDOWS:
+                baseline_day = margin_calendar[-1 - days]
+                key = baseline_day.strftime("%Y%m%d")
+                try:
+                    sse = ak.stock_margin_sse(start_date=key, end_date=key).iloc[0]
+                    szse = ak.stock_margin_szse(date=key).iloc[0]
+                    previous_balance = float(sse["融资余额"]) / 1e8 + float(szse["融资余额"])
+                    current_balance = float(margin["balance_100m_cny"])
+                    margin_windows[days] = {"from_period": baseline_day.isoformat(), "to_period": margin["period"], "balance_change_100m_cny": round(current_balance - previous_balance, 2), "change_pct": round((current_balance / previous_balance - 1) * 100, 2)}
+                except Exception:
+                    gaps.append({"indicator_id": f"FF-MARGIN-{days}", "reason": "两融窗口基期数据暂不可用"})
 
-    northbound = None
     north_url = "https://www.sse.com.cn/services/hkexsc/hgtscsj/hgtcjgk/"
-    history = []
-    for offset in range(7):
-        day = market_day - timedelta(days=offset)
-        if day.weekday() >= 5:
-            continue
+    north_history: list[tuple[date, float]] = []
+    for day in reversed(calendar[-max(WINDOWS) - 12:]):
         try:
             response = _retry_get("https://query.sse.com.cn/commonSoaQuery.do", params={"sqlId": "FW_HGTZL_HGTSCSJ_HGTCJGK_MRTJ", "tradeDate": day.strftime("%Y%m%d")}, headers={"Referer": north_url, "User-Agent": "Mozilla/5.0"}, timeout=12, attempts=2)
             response.raise_for_status()
@@ -1684,31 +1685,38 @@ def collect_forward_flows(report_day: date, market_day: date, domestic: dict[str
             if rows and rows[0].get("tradeDate") == day.strftime("%Y%m%d"):
                 amount = float(rows[0]["totalAmount"].replace(",", ""))
                 if amount > 0:
-                    history.append((day, amount))
-            if len(history) >= 2:
-                break
+                    north_history.append((day, amount))
+                    if len(north_history) == max(WINDOWS):
+                        break
         except (requests.RequestException, ValueError, KeyError, IndexError):
             continue
-    if history:
-        latest_day, latest_amount = history[0]
-        northbound = {"period": latest_day.isoformat(), "turnover_100m_cny": round(latest_amount, 2), "previous_period": history[1][0].isoformat() if len(history) > 1 else None, "change_pct": round((latest_amount / history[1][1] - 1) * 100, 2) if len(history) > 1 else None, "scope": "沪股通成交总额；仅上海，不含深股通；无买卖方向", "publisher": "上海证券交易所", "canonical_url": north_url}
-    else:
-        gaps.append({"indicator_id": "FF-NORTH-TURNOVER", "reason": "上交所沪股通成交总额暂不可用"})
+    if not north_history or north_history[0][0] != market_day:
+        gaps.append({"indicator_id": "FF-NORTH-TURNOVER", "reason": "沪股通近20交易日成交额覆盖不足，活跃度趋势不发布"})
+        north_history = []
 
-    conditions = []
-    for series, label, unit in [("DEXCHUS", "美元兑人民币", "%"), ("DFII10", "美国10年实际利率", "百分点"), ("VIXCLS", "VIX", "点")]:
-        frame = global_frames.get(series)
-        if frame is None or len(frame) < 6:
-            continue
-        latest, earlier = frame.iloc[-1], frame.iloc[-6]
-        latest_day = latest["date"].date()
-        if not 0 <= (report_day - latest_day).days <= 5:
-            continue
-        change = (float(latest["value"]) / float(earlier["value"]) - 1) * 100 if unit == "%" else float(latest["value"]) - float(earlier["value"])
-        conditions.append({"label": label, "period": latest_day.isoformat(), "value": round(float(latest["value"]), 4), "change_5d": round(change, 2), "unit": unit, "publisher": "FRED", "canonical_url": f"https://fred.stlouisfed.org/series/{series}"})
+    windows = []
+    for days, baseline_day in dates.items():
+        north_rows = north_history[:days] if len(north_history) >= days else []
+        foreign_conditions: dict[str, Any] = {}
+        for series, field, unit in [("DTWEXBGS", "dollar_change_pct", "%"), ("DFII10", "real_yield_change_pp", "百分点"), ("VIXCLS", "vix_change_points", "点")]:
+            frame = global_frames.get(series)
+            if frame is None or len(frame) <= days:
+                continue
+            latest, earlier = frame.iloc[-1], frame.iloc[-1 - days]
+            latest_day = latest["date"].date()
+            if not 0 <= (report_day - latest_day).days <= 5:
+                continue
+            current, previous = float(latest["value"]), float(earlier["value"])
+            change = (current / previous - 1) * 100 if unit == "%" else current - previous
+            foreign_conditions[field] = round(change, 2)
+            foreign_conditions[f"{field}_period"] = latest_day.isoformat()
+        southbound = domestic.get("southbound")
+        south_value = (southbound.get("window_sums_100m_cny") or {}).get(str(days)) if southbound else None
+        etf = etf_windows.get(days)
+        windows.append({"days": days, "from_period": baseline_day.isoformat(), "to_period": market_day.isoformat(), "equity_etf": {"change_100m_shares": etf["change_100m_shares"], "change_pct": etf["change_pct"], "matched_count": etf["matched_count"], "coverage": etf["coverage"]} if etf else None, "margin": margin_windows[days], "southbound": {"net_buy_100m_cny": south_value, "to_period": southbound["period"]} if south_value is not None else None, "northbound": {"avg_turnover_100m_cny": round(sum(amount for _, amount in north_rows) / days, 2), "observations": days, "from_period": north_rows[-1][0].isoformat(), "to_period": north_rows[0][0].isoformat()} if len(north_rows) == days else None, "foreign_conditions": foreign_conditions})
 
-    states = classify_outlook(domestic, foreign_etfs, report_day.isoformat())
-    return {"market_day": market_day.isoformat(), "horizons": "未来5/20个交易日条件观察", "states": states, "northbound": northbound, "foreign_etfs": foreign_etfs, "external_conditions": conditions, "method_note": "境内ETF份额、两融和南向净买额为不同维度；境外ETF仅为3只发行人样本。沪股通总成交额没有买卖方向。汇率、实际利率和VIX是外资配置条件，不是实际资金流。未用样本变化推算全市场净流入或未来收益。"}
+    verdict = interpret_windows(windows)
+    return {"market_day": market_day.isoformat(), "windows": windows, "verdict": verdict, "sources": {"equity_etf": "https://www.sse.com.cn/market/funddata/volumn/etfvolumn/", "margin": "https://www.sse.com.cn/market/othersdata/margin/", "southbound": "https://data.eastmoney.com/hsgt/index.html", "northbound": north_url, "dollar": "https://fred.stlouisfed.org/series/DTWEXBGS", "real_yield": "https://fred.stlouisfed.org/series/DFII10", "vix": "https://fred.stlouisfed.org/series/VIXCLS"}, "method_note": "境内权益ETF为上交所可比基金份额变化，筛除跨境及可识别债券、黄金等非股票基金；份额不等于净资金金额。融资余额反映A股杠杆变化，可能较行情日滞后。南向为内地资金买卖港股的成交净买额，不用于推断A股净流向。沪股通仅有上海方向成交总额，按自身有效交易日计算，无买卖方向，不可推断北向净流入。美元、美国实际利率、VIX仅用于判断外资配置环境，非外资实际净流向。结论是条件推断，不是交易指令。"}
 
 
 def build_snapshot(report_day: date, revision: str = "r1", market_day: date | None = None) -> dict[str, Any]:

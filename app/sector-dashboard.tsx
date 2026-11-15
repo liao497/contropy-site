@@ -95,11 +95,16 @@ type CapitalFlows = {
 };
 type ForwardFlows = {
   market_day: string;
-  horizons: string;
-  states: { domestic: string; foreign: string; joint: string };
-  northbound: { period: string; turnover_100m_cny: number; previous_period: string | null; change_pct: number | null; scope: string; publisher: string; canonical_url: string } | null;
-  foreign_etfs: Array<{ ticker: string; exposure: string; period: string; shares: number; previous_period: string | null; change_pct: number | null; publisher: string; canonical_url: string }>;
-  external_conditions: Array<{ label: string; period: string; value: number; change_5d: number; unit: string; publisher: string; canonical_url: string }>;
+  windows: Array<{
+    days: number; from_period: string; to_period: string;
+    equity_etf: { change_100m_shares: number; change_pct: number; matched_count: number; coverage: number } | null;
+    margin: { from_period: string; to_period: string; balance_change_100m_cny: number; change_pct: number } | null;
+    southbound: { net_buy_100m_cny: number; to_period: string } | null;
+    northbound: { avg_turnover_100m_cny: number; observations: number; from_period: string; to_period: string } | null;
+    foreign_conditions: { dollar_change_pct?: number; real_yield_change_pp?: number; vix_change_points?: number; dollar_change_pct_period?: string; real_yield_change_pp_period?: string; vix_change_points_period?: string };
+  }>;
+  verdict: { domestic: string; hong_kong: string; foreign_environment: string; participation: string; headline: string };
+  sources: Record<string, string>;
   method_note: string;
 };
 
@@ -263,31 +268,33 @@ function CapitalFlowSection({ flows, metrics }: { flows?: CapitalFlows; metrics:
   </section>;
 }
 
-function ForwardFlowSection({ outlook, flows }: { outlook?: ForwardFlows; flows?: CapitalFlows }) {
-  if (!outlook) return null;
-  const jointTone = outlook.states.joint === "双向支持" ? "positive" : outlook.states.joint === "双向承压" ? "danger" : "warning";
+function ForwardFlowSection({ outlook }: { outlook?: ForwardFlows }) {
+  if (!outlook?.windows?.length) return null;
+  const five = outlook.windows.find((item) => item.days === 5);
+  const ten = outlook.windows.find((item) => item.days === 10);
+  const twenty = outlook.windows.find((item) => item.days === 20);
+  const signed = (value: number | undefined, suffix: string) => value === undefined ? "—" : `${value > 0 ? "+" : ""}${formatNumber(value)}${suffix}`;
   return <section className="s-section s-forward-flow" aria-label="未来资金方向观察">
-    <div className="s-section-heading"><h2>未来资金方向</h2><span>{outlook.horizons} · 条件判断</span></div>
+    <div className="s-section-heading"><h2>未来资金方向</h2><span>近5 / 10 / 20个交易日 · 数据截至 {outlook.market_day}</span></div>
+    <p className={`s-forward-flow-headline ${outlook.verdict.headline.includes("承压") || outlook.verdict.headline.includes("压力较高") ? "s-forward-flow-headline--danger" : outlook.verdict.headline.includes("改善") ? "s-forward-flow-headline--positive" : ""}`}>{outlook.verdict.headline}</p>
     <div className="s-forward-flow-grid">
-      <article className={`s-forward-flow-card s-forward-flow-card--${outlook.states.domestic === "偏积极" ? "positive" : outlook.states.domestic === "偏谨慎" ? "danger" : "warning"}`}>
-        <span>境内资金</span><strong>{outlook.states.domestic}</strong>
-        <p>ETF份额{flows?.etf ? `${flows.etf.change_pct > 0 ? "+" : ""}${flows.etf.change_pct}%` : "待更新"} · 两融{flows?.margin ? `${flows.margin.balance_change_100m_cny > 0 ? "+" : ""}${flows.margin.balance_change_100m_cny}亿元` : "待更新"} · 南向{flows?.southbound ? `${flows.southbound.net_buy_100m_cny > 0 ? "+" : ""}${flows.southbound.net_buy_100m_cny}亿元` : "待更新"}</p>
+      <article className={`s-forward-flow-card s-forward-flow-card--${outlook.verdict.domestic.includes("持续增配") ? "positive" : outlook.verdict.domestic.includes("持续减配") ? "danger" : "warning"}`}>
+        <span>A股 · ETF份额与融资余额</span><strong>{outlook.verdict.domestic}</strong>
+        <p>权益ETF 5 / 10 / 20日：{signed(five?.equity_etf?.change_100m_shares, "亿份")} / {signed(ten?.equity_etf?.change_100m_shares, "亿份")} / {signed(twenty?.equity_etf?.change_100m_shares, "亿份")}。</p>
       </article>
-      <article className={`s-forward-flow-card s-forward-flow-card--${outlook.states.foreign === "样本扩张" ? "positive" : outlook.states.foreign === "样本收缩" ? "danger" : "warning"}`}>
-        <span>境外资金样本</span><strong>{outlook.states.foreign}</strong>
-        <p>{outlook.foreign_etfs.length}只中国股票ETF发行人份额 · {outlook.foreign_etfs.filter((item) => item.change_pct !== null).length}只可比</p>
+      <article className={`s-forward-flow-card s-forward-flow-card--${outlook.verdict.hong_kong.includes("均净买入") ? "positive" : outlook.verdict.hong_kong.includes("均净卖出") ? "danger" : "warning"}`}>
+        <span>港股通 · 内地资金南向成交</span><strong>{outlook.verdict.hong_kong}</strong>
+        <p>5 / 10 / 20日净买额：{signed(five?.southbound?.net_buy_100m_cny, "亿元")} / {signed(ten?.southbound?.net_buy_100m_cny, "亿元")} / {signed(twenty?.southbound?.net_buy_100m_cny, "亿元")}。不计入A股资金判断。</p>
       </article>
-      <article className={`s-forward-flow-card s-forward-flow-card--${jointTone}`}>
-        <span>两侧合看</span><strong>{outlook.states.joint}</strong>
-        <p>5日看同向变化；20日需连续样本确认。分歧时降低资金方向判断权重。</p>
+      <article className={`s-forward-flow-card s-forward-flow-card--${outlook.verdict.foreign_environment.includes("改善") ? "positive" : outlook.verdict.foreign_environment.includes("偏紧") ? "danger" : "warning"}`}>
+        <span>外资 · 配置条件与沪股通活跃度</span><strong>{outlook.verdict.foreign_environment}</strong>
+        <p>{outlook.verdict.participation}。近5日美国实际利率 {signed(five?.foreign_conditions.real_yield_change_pp, "个百分点")}；VIX {signed(five?.foreign_conditions.vix_change_points, "点")}。北向净买额无公开日度数据。</p>
       </article>
     </div>
-    <details className="s-forward-flow-detail"><summary>展开外资证据与确认条件</summary>
-      <div className="s-forward-flow-detail-grid">
-        <div><h3>境外ETF发行人份额</h3>{outlook.foreign_etfs.length ? outlook.foreign_etfs.map((item) => <p key={item.ticker}><a href={item.canonical_url} target="_blank" rel="noreferrer">{item.ticker}</a> · {item.exposure} · {formatNumber(item.shares)}份 · {item.change_pct === null ? "尚无前期可比" : `${item.change_pct > 0 ? "+" : ""}${item.change_pct}%`} · {item.period}</p>) : <p>发行人样本暂不可用。</p>}</div>
-        <div><h3>沪股通交易活跃度</h3>{outlook.northbound ? <p><a href={outlook.northbound.canonical_url} target="_blank" rel="noreferrer">{outlook.northbound.publisher}</a> · {formatNumber(outlook.northbound.turnover_100m_cny)}亿元 · {outlook.northbound.change_pct === null ? "暂无前期可比" : `较前期${outlook.northbound.change_pct > 0 ? "+" : ""}${outlook.northbound.change_pct}%`} · {outlook.northbound.period}。{outlook.northbound.scope}。</p> : <p>沪股通成交总额暂不可用。</p>}<h3>外部配置条件 · 近5个有效日</h3>{outlook.external_conditions.map((item) => <p key={item.label}><a href={item.canonical_url} target="_blank" rel="noreferrer">{item.label}</a> {formatNumber(item.value)} · 变化{item.change_5d > 0 ? "+" : ""}{item.change_5d}{item.unit} · {item.period}</p>)}</div>
-      </div>
-      <p className="s-forward-flow-note">确认：境内至少两项同向；境外需 CNYA 与另一只中国股票ETF样本同向。{outlook.method_note}</p>
+    <div className="s-forward-flow-table-wrap"><table className="s-forward-flow-table" aria-label="5日10日20日资金证据"><thead><tr><th>区间</th><th>A股权益ETF份额</th><th>融资余额</th><th>南向净买额</th><th>沪股通日均成交</th><th>实际利率 / VIX</th></tr></thead><tbody>{outlook.windows.map((item) => <tr key={item.days}><th>{item.days}日<small>{item.from_period} → {item.to_period}</small></th><td className={item.equity_etf && item.equity_etf.change_pct > 0 ? "s-flow-positive" : item.equity_etf && item.equity_etf.change_pct < 0 ? "s-flow-negative" : ""}>{signed(item.equity_etf?.change_100m_shares, "亿份")}<small>{signed(item.equity_etf?.change_pct, "%")} · 可比{item.equity_etf?.matched_count ?? "—"}只</small></td><td>{signed(item.margin?.balance_change_100m_cny, "亿元")}<small>{item.margin ? `${item.margin.from_period} → ${item.margin.to_period}` : "—"}</small></td><td className={item.southbound && item.southbound.net_buy_100m_cny > 0 ? "s-flow-positive" : item.southbound && item.southbound.net_buy_100m_cny < 0 ? "s-flow-negative" : ""}>{signed(item.southbound?.net_buy_100m_cny, "亿元")}<small>截至{item.southbound?.to_period ?? "—"}</small></td><td>{signed(item.northbound?.avg_turnover_100m_cny, "亿元")}<small>仅沪股通 · 无方向</small></td><td>实际利率 {signed(item.foreign_conditions.real_yield_change_pp, "个百分点")}<small>VIX {signed(item.foreign_conditions.vix_change_points, "点")} · 截至{item.foreign_conditions.real_yield_change_pp_period ?? item.foreign_conditions.vix_change_points_period ?? "—"}</small></td></tr>)}</tbody></table></div>
+    <details className="s-forward-flow-detail"><summary>数据来源与判断边界</summary>
+      <div className="s-forward-flow-source-list">{Object.entries(outlook.sources).map(([key, url]) => <a href={url} key={key} target="_blank" rel="noreferrer">{({equity_etf:"上交所ETF",margin:"上交所两融",southbound:"南向净买",northbound:"沪股通成交",dollar:"美元指数",real_yield:"实际利率",vix:"VIX"} as Record<string,string>)[key] ?? key}</a>)}</div>
+      <p className="s-forward-flow-note">{outlook.method_note}</p>
     </details>
   </section>;
 }
@@ -438,7 +445,7 @@ export function SectorDashboard() {
         {core.map((item) => <MetricCard metric={item} key={item.indicator_id} />)}
       </section>
 
-      <ForwardFlowSection outlook={snapshot.forward_flows} flows={snapshot.capital_flows} />
+      <ForwardFlowSection outlook={snapshot.forward_flows} />
 
       {snapshot.events.length || headlineNews.length ? <section className="s-section s-next-section">
         <div className="s-section-heading"><h2>接下来关注</h2><span>重要催化与异动</span></div>

@@ -95,15 +95,14 @@ test("archives capital-flow measures with their proxy labels", async () => {
   assert.match(report, /不等同于净资金流入/);
 });
 
-test("archives foreign fund evidence without calling turnover net inflow", async () => {
+test("archives three-period flow evidence without calling turnover net inflow", async () => {
   const output = await mkdtemp(path.join(os.tmpdir(), "forward-flow-"));
   const fixture = JSON.parse(await readFile(new URL("fixtures/demo-snapshot.json", import.meta.url), "utf8"));
   fixture.forward_flows = {
-    market_day: "2026-08-18", horizons: "未来5/20个交易日条件观察",
-    states: { domestic: "待确认", foreign: "待确认", joint: "待确认" },
-    northbound: { period: "2026-08-18", turnover_100m_cny: 900, change_pct: 2, scope: "沪股通成交总额；无买卖方向", publisher: "上海证券交易所", canonical_url: "https://www.sse.com.cn/services/hkexsc/hgtscsj/hgtcjgk/" },
-    foreign_etfs: [{ ticker: "CNYA", exposure: "A股", period: "2026-08-18", shares: 1000000, change_pct: null, canonical_url: "https://www.ishares.com/us/products/273318/ishares-msci-china-a-etf" }],
-    external_conditions: [], method_note: "ETF仅为发行人样本。",
+    market_day: "2026-08-18",
+    windows: [5, 10, 20].map((days) => ({ days, from_period: "2026-07-15", to_period: "2026-08-18", equity_etf: { change_100m_shares: -8, change_pct: -0.5 }, margin: null, southbound: { net_buy_100m_cny: 25 }, northbound: { avg_turnover_100m_cny: 900 }, foreign_conditions: { dollar_change_pct: 0.8 } })),
+    verdict: { domestic: "权益ETF中期增份额、短期回落", hong_kong: "近5/10/20日均净买入", foreign_environment: "外资配置环境偏紧", participation: "沪股通活跃度降温", headline: "短线资金承压" },
+    sources: { equity_etf: "https://www.sse.com.cn/market/funddata/volumn/etfvolumn/" }, method_note: "沪股通无买卖方向。",
   };
   const fixturePath = path.join(output, "forward-fixture.json");
   await writeFile(fixturePath, `${JSON.stringify(fixture)}\n`);
@@ -111,6 +110,7 @@ test("archives foreign fund evidence without calling turnover net inflow", async
   assert.equal(result.status, 0, result.stderr);
   const report = await readFile(path.join(output, "reports/daily/2026/08/2026-08-19.md"), "utf8");
   assert.match(report, /未来资金方向观察/);
-  assert.match(report, /CNYA/);
-  assert.match(report, /沪股通成交总额；无买卖方向/);
+  assert.match(report, /短线资金承压/);
+  assert.match(report, /20日/);
+  assert.match(report, /沪股通无买卖方向/);
 });
