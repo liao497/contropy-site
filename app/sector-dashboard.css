@@ -421,8 +421,8 @@
 .s-detail summary { min-height: 58px; padding: 16px 20px; }
 .s-detail summary:hover { background: #f7f9f7; }
 .s-detail summary:focus-visible, .sector-dashboard a:focus-visible { outline: 3px solid #bb8c38; outline-offset: -3px; }
-.s-detail summary strong { font-size: 16px; }
-.s-detail summary span { font-size: 12px; }
+.s-detail summary strong { flex: 0 0 auto; max-width: 42%; font-size: 16px; }
+.s-detail summary span { flex: 1; min-width: 0; color: #40504a; font-size: 13px; font-weight: 550; line-height: 1.5; text-align: right; overflow-wrap: anywhere; }
 .s-detail[open] > summary { border-bottom: 1px solid var(--line); background: #f7f9f7; }
 .s-metric-table th, .s-metric-table td { padding: 14px 16px; font-size: 13px; }
 .s-metric-table thead th { color: var(--muted); background: #f0f3f0; font-size: 12px; }
@@ -474,6 +474,10 @@
   .s-section { margin-top: 30px; }
   .s-section-heading { align-items: flex-start; }
   .s-metric-table { min-width: 890px; }
+  .s-detail summary { flex-wrap: wrap; align-items: flex-start; gap: 5px 10px; }
+  .s-detail summary strong { max-width: calc(100% - 30px); }
+  .s-detail summary span { flex-basis: 100%; order: 3; text-align: left; }
+  .s-detail summary::after { order: 2; margin-left: auto; }
 }
 @media (max-width: 500px) {
   .s-core-grid, .s-next-grid { grid-template-columns: 1fr; }

@@ -215,6 +215,18 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("zh-CN", { maximumFractionDigits: 2 }).format(value);
 }
 
+function signedSummary(value: number | null | undefined, unit: string) {
+  return value === null || value === undefined || !Number.isFinite(value) ? null : `${value > 0 ? "+" : ""}${formatNumber(value)}${unit}`;
+}
+
+function summaryLine(parts: Array<string | null | undefined>, fallback = "本期暂无可用数据") {
+  return parts.filter((part): part is string => Boolean(part)).join(" · ") || fallback;
+}
+
+function firstChange(value: string | number | null | undefined) {
+  return String(value ?? "").match(/[+-]\d+(?:\.\d+)?%/)?.[0] ?? null;
+}
+
 function Change({ value }: { value: number }) {
   const tone = value > 0 ? "up" : value < 0 ? "down" : "flat";
   return <span className={`s-change s-change--${tone}`}>{value > 0 ? "+" : ""}{value.toFixed(2)}%</span>;
@@ -273,9 +285,11 @@ function ForwardFlowSection({ outlook }: { outlook?: ForwardFlows }) {
   const five = outlook.windows.find((item) => item.days === 5);
   const ten = outlook.windows.find((item) => item.days === 10);
   const twenty = outlook.windows.find((item) => item.days === 20);
+  const fiveEtfChange = signedSummary(five?.equity_etf?.change_100m_shares, "亿份");
+  const fiveMarginChange = signedSummary(five?.margin?.balance_change_100m_cny, "亿元");
   const signed = (value: number | undefined, suffix: string) => value === undefined ? "—" : `${value > 0 ? "+" : ""}${formatNumber(value)}${suffix}`;
   return <section className="s-section s-forward-flow" aria-label="未来资金方向观察">
-    <div className="s-section-heading"><h2>未来资金方向</h2><span>近5 / 10 / 20个交易日 · 数据截至 {outlook.market_day}</span></div>
+    <div className="s-section-heading"><h2>未来资金方向</h2><span>{summaryLine([fiveEtfChange && `近5日ETF ${fiveEtfChange}`, fiveMarginChange && `融资 ${fiveMarginChange}`, `截至${outlook.market_day}`])}</span></div>
     <p className={`s-forward-flow-headline ${outlook.verdict.headline.includes("承压") || outlook.verdict.headline.includes("压力较高") ? "s-forward-flow-headline--danger" : outlook.verdict.headline.includes("改善") ? "s-forward-flow-headline--positive" : ""}`}>{outlook.verdict.headline}</p>
     <div className="s-forward-flow-grid">
       <article className={`s-forward-flow-card s-forward-flow-card--${outlook.verdict.domestic.includes("持续增配") ? "positive" : outlook.verdict.domestic.includes("持续减配") ? "danger" : "warning"}`}>
@@ -399,6 +413,49 @@ export function SectorDashboard() {
   const headlineNews = majorNews.filter((item) => item.impact_level === "high").slice(0, 2);
   const shipping = snapshot.shipping ?? [];
   const commodities = snapshot.commodities ?? [];
+  const metricValue = (id: string) => snapshot.metrics.find((item) => item.indicator_id === id)?.value;
+  const turnoverParts = String(metricValue("M1-A05/06/07") ?? "").split("；");
+  const bondParts = String(metricValue("M2-B10") ?? "").split(" / ");
+  const industryLeaders = String(metricValue("M3-A01/03") ?? "").split("；").slice(0, 2).map((part) => part.match(/^(.+?) RPS20/)?.[1]).filter(Boolean);
+  const crowdedIndustry = String(metricValue("M3-A10") ?? "").split("；")[0];
+  const riskParts = String(metricValue("M6-B02") ?? "").split("；");
+  const featuredNews = headlineNews[0] ?? majorNews[0];
+  const hormuz = shipping.find((item) => item.route_name.includes("霍尔木兹"));
+  const commodityDeclines = commodities.filter((item) => item.daily_change_pct < 0).length;
+  const largestCommodityMove = commodities.reduce<CommodityQuote | null>((largest, item) => !largest || Math.abs(item.daily_change_pct) > Math.abs(largest.daily_change_pct) ? item : largest, null);
+  const capitalSummary = summaryLine([
+    snapshot.capital_flows?.etf && `ETF ${signedSummary(snapshot.capital_flows.etf.change_100m_shares, "亿份")}`,
+    snapshot.capital_flows?.southbound && `南向 ${signedSummary(snapshot.capital_flows.southbound.net_buy_100m_cny, "亿元")}`,
+    snapshot.capital_flows?.margin && `融资 ${signedSummary(snapshot.capital_flows.margin.balance_change_100m_cny, "亿元")}`,
+    snapshot.capital_flows?.sectors?.increasing[0] && `${snapshot.capital_flows.sectors.increasing[0].name}成交占比 ${signedSummary(snapshot.capital_flows.sectors.increasing[0].change_pp, "百分点")}`,
+  ]);
+  const newsSummary = summaryLine([
+    featuredNews && `${featuredNews.headline.length > 25 ? `${featuredNews.headline.slice(0, 24)}…` : featuredNews.headline}（${formatDateTime(featuredNews.published_at)}）`,
+    hormuz && `霍尔木兹${hormuz.vessel_count}艘（${hormuz.period.slice(5)}）`,
+  ]);
+  const commoditySummary = summaryLine([
+    commodities.length ? `${commodityDeclines}/${commodities.length}种期货下跌` : null,
+    largestCommodityMove && `${largestCommodityMove.name}日变 ${signedSummary(largestCommodityMove.daily_change_pct, "%")}、近5日 ${signedSummary(largestCommodityMove.weekly_change_pct, "%")}`,
+  ]);
+  const sentimentSummary = summaryLine(sentiment.map((item) => item.value === null ? null : `${item.indicator_name.replace(/(?:市场)?情绪温度/, "")}${String(item.value).split(" · ")[0]}`));
+  const marketSummary = summaryLine([
+    turnoverParts[0] && `沪深成交${turnoverParts[0]}亿元`,
+    snapshot.capital_flows?.southbound && `南向${signedSummary(snapshot.capital_flows.southbound.net_buy_100m_cny, "亿元")}`,
+  ]);
+  const globalSummary = summaryLine([
+    firstChange(metricValue("M1-C01")) && `标普${firstChange(metricValue("M1-C01"))}`,
+    firstChange(metricValue("M1-C03")) && `日经${firstChange(metricValue("M1-C03"))}`,
+    firstChange(metricValue("M1-C04")) && `韩国${firstChange(metricValue("M1-C04"))}`,
+  ]);
+  const macroSummary = summaryLine([
+    metricValue("M2-A01/03") !== null && metricValue("M2-A01/03") !== undefined ? `PMI ${String(metricValue("M2-A01/03")).replace(/\s*\/\s*/g, "/")}` : null,
+    bondParts[1] && `10年国债${bondParts[1].trim()}`,
+  ]);
+  const industrySummary = summaryLine([
+    industryLeaders.length ? `RPS前列 ${industryLeaders.join("、")}` : null,
+    crowdedIndustry && `拥挤度 ${crowdedIndustry}`,
+  ]);
+  const riskSummary = summaryLine(riskParts.slice(0, 2));
   const statusTone: Tone = marketDataIsStale ? "danger" : snapshot.data_state === "partial" ? "warning" : "neutral";
   const alertTone = triggeredRisks.length ? "danger" : watchingRisks.length ? "watch" : "calm";
 
@@ -456,22 +513,22 @@ export function SectorDashboard() {
       </section> : null}
 
       <section className="s-section s-support-section">
-        <div className="s-section-heading"><h2>更多数据</h2><span>按需展开 · 完整来源与历史对比</span></div>
-        <details className="s-detail"><summary><strong>当期资金流向与行业活跃度</strong><span>ETF · 南向 · 两融 · 行业</span></summary><CapitalFlowSection flows={snapshot.capital_flows} metrics={snapshot.metrics} /></details>
-        <details className="s-detail"><summary><strong>重大新闻与航运要道</strong><span>{majorNews.length}条新闻 · {shipping.length}条航道</span></summary><MajorNewsSection news={majorNews} shipping={shipping} /></details>
-        <details className="s-detail"><summary><strong>主要大宗商品</strong><span>{commodities.length}种期货</span></summary><CommoditySection commodities={commodities} /></details>
-        <details className="s-detail"><summary><strong>跨市场情绪</strong><span>狂热为逆向风险</span></summary><section className="s-section s-sentiment-section"><div className="s-sentiment-grid">{sentiment.map((item) => <SentimentCard metric={item} key={item.indicator_id} />)}</div><p className="s-sentiment-note">极度悲观仅提示潜在反转窗口，不构成买入信号；狂热或一致乐观时提高风险提示等级。</p></section></details>
-        {snapshot.events.length > 2 ? <details className="s-detail"><summary><strong>未来催化</strong><span>北京时间</span></summary><div className="s-event-grid s-event-grid--detail">{snapshot.events.slice(2).map((event) => <article key={`${event.event_at}-${event.event_name}`}><div><strong>{formatDateTime(event.event_at)}</strong><span>{event.window} · {event.impact}影响</span></div><h3>{event.event_name}</h3><p>{event.industries}</p><small>{event.scenario}</small></article>)}</div></details> : null}
+        <div className="s-section-heading"><h2>更多数据</h2><span>{summaryLine([snapshot.capital_flows?.etf && `ETF日变 ${signedSummary(snapshot.capital_flows.etf.change_100m_shares, "亿份")}`, commodities.length ? `${commodityDeclines}/${commodities.length}种期货下跌` : null])}</span></div>
+        <details className="s-detail"><summary><strong>当期资金流向与行业活跃度</strong><span>{capitalSummary}</span></summary><CapitalFlowSection flows={snapshot.capital_flows} metrics={snapshot.metrics} /></details>
+        <details className="s-detail"><summary><strong>重大新闻与航运要道</strong><span>{newsSummary}</span></summary><MajorNewsSection news={majorNews} shipping={shipping} /></details>
+        <details className="s-detail"><summary><strong>主要大宗商品</strong><span>{commoditySummary}</span></summary><CommoditySection commodities={commodities} /></details>
+        <details className="s-detail"><summary><strong>跨市场情绪</strong><span>{sentimentSummary}</span></summary><section className="s-section s-sentiment-section"><div className="s-sentiment-grid">{sentiment.map((item) => <SentimentCard metric={item} key={item.indicator_id} />)}</div><p className="s-sentiment-note">极度悲观仅提示潜在反转窗口，不构成买入信号；狂热或一致乐观时提高风险提示等级。</p></section></details>
+        {snapshot.events.length > 2 ? <details className="s-detail"><summary><strong>未来催化</strong><span>{formatDateTime(snapshot.events[2].event_at)} · {snapshot.events[2].event_name}</span></summary><div className="s-event-grid s-event-grid--detail">{snapshot.events.slice(2).map((event) => <article key={`${event.event_at}-${event.event_name}`}><div><strong>{formatDateTime(event.event_at)}</strong><span>{event.window} · {event.impact}影响</span></div><h3>{event.event_name}</h3><p>{event.industries}</p><small>{event.scenario}</small></article>)}</div></details> : null}
       </section>
 
       <section className="s-section">
-        <div className="s-section-heading"><h2>指标明细</h2><span>风险与观察项整行高亮</span></div>
-        <details className="s-detail"><summary><strong>01 市场环境 · A股与港股通</strong><span>{domestic.length}项</span></summary><MetricTable rows={domestic} label="A股与港股通市场环境" /></details>
-        <details className="s-detail"><summary><strong>02 海外参考 · 美国与亚洲</strong><span>{global.length}项</span></summary><MetricTable rows={global} label="海外市场参考" /></details>
-        <details className="s-detail"><summary><strong>03 宏观、利率与政策预期</strong><span>{macro.length}项</span></summary><MetricTable rows={macro} label="宏观利率与政策预期" /></details>
-        <details className="s-detail"><summary><strong>04 行业强度、成交与拥挤</strong><span>{industry.length}项</span></summary><MetricTable rows={industry} label="行业强度与拥挤" /></details>
-        <details className="s-detail"><summary><strong>05 风险压力指标</strong><span>{riskMetrics.length}项</span></summary><MetricTable rows={riskMetrics} label="风险压力指标" /></details>
-        <details className="s-detail"><summary><strong>06 跨市场情绪 · 逆向风险</strong><span>{sentiment.length}项</span></summary><MetricTable rows={sentiment} label="跨市场情绪" /></details>
+        <div className="s-section-heading"><h2>指标明细</h2><span>{summaryLine([marketSummary.split(" · ")[0], globalSummary.split(" · ")[0], macroSummary.split(" · ")[0]])}</span></div>
+        <details className="s-detail"><summary><strong>01 市场环境 · A股与港股通</strong><span>{marketSummary}</span></summary><MetricTable rows={domestic} label="A股与港股通市场环境" /></details>
+        <details className="s-detail"><summary><strong>02 海外参考 · 美国与亚洲</strong><span>{globalSummary}</span></summary><MetricTable rows={global} label="海外市场参考" /></details>
+        <details className="s-detail"><summary><strong>03 宏观、利率与政策预期</strong><span>{macroSummary}</span></summary><MetricTable rows={macro} label="宏观利率与政策预期" /></details>
+        <details className="s-detail"><summary><strong>04 行业强度、成交与拥挤</strong><span>{industrySummary}</span></summary><MetricTable rows={industry} label="行业强度与拥挤" /></details>
+        <details className="s-detail"><summary><strong>05 风险压力指标</strong><span>{riskSummary}</span></summary><MetricTable rows={riskMetrics} label="风险压力指标" /></details>
+        <details className="s-detail"><summary><strong>06 跨市场情绪 · 逆向风险</strong><span>{sentimentSummary}</span></summary><MetricTable rows={sentiment} label="跨市场情绪" /></details>
       </section>
 
       <footer className="s-site-footer">

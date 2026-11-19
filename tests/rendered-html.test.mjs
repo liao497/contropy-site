@@ -6,6 +6,13 @@ function escapeRegExp(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function summaryFor(html, title) {
+  const start = `<summary><strong>${title}</strong><span>`;
+  const position = html.indexOf(start);
+  assert.ok(position >= 0, `missing summary for ${title}`);
+  return html.slice(position + start.length, html.indexOf("</span></summary>", position)).replace(/<!-- -->/g, "");
+}
+
 async function render() {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
@@ -58,7 +65,7 @@ test("server-renders the metric-only real daily dashboard", async () => {
     assert.match(html, /A股 · ETF份额与融资余额/);
     assert.match(html, /港股通 · 内地资金南向成交/);
     assert.match(html, /外资 · 配置条件与沪股通活跃度/);
-    assert.match(html, /近5 \/ 10 \/ 20个交易日/);
+    assert.match(html, /近5日ETF/);
     assert.match(html, /数据来源与判断边界/);
   }
   assert.match(html, /板块成交占比/);
@@ -84,12 +91,41 @@ test("server-renders the metric-only real daily dashboard", async () => {
   for (const metric of sentimentMetrics) {
     assert.match(html, new RegExp(escapeRegExp(metric.indicator_name)));
   }
-  assert.match(html, /狂热为逆向风险/);
+  if (sentimentMetrics.length) assert.match(summaryFor(html, "跨市场情绪"), /\/100/);
   assert.match(html, /行业强度、成交与拥挤/);
   assert.match(html, /风险压力指标/);
   if (snapshot.events.length > 2) assert.match(html, /未来催化/);
   assert.match(html, /href="mailto:liao497@126\.com"[^>]*>liao497@126\.com<\/a>/);
   assert.doesNotMatch(html, /数据缺口|管理观察池|加入观察池|个股候选|DEMO|演示数据|方法论|归档路径/);
+});
+
+test("collapsed sections summarize current data instead of only showing item counts", async () => {
+  const snapshot = JSON.parse(await readFile(new URL("../data/current-snapshot.json", import.meta.url), "utf8"));
+  const response = await render();
+  const html = await response.text();
+
+  const capital = summaryFor(html, "当期资金流向与行业活跃度");
+  if (snapshot.capital_flows?.etf) assert.match(capital, /ETF.*亿份/);
+  if (snapshot.capital_flows?.southbound) assert.match(capital, /南向.*亿元/);
+  if (snapshot.capital_flows?.margin) assert.match(capital, /融资.*亿元/);
+  const commodities = summaryFor(html, "主要大宗商品");
+  if (snapshot.commodities?.length) {
+    assert.match(commodities, /种期货下跌.*日变.*近5日/);
+    const largest = snapshot.commodities.reduce((best, item) => Math.abs(item.daily_change_pct) > Math.abs(best.daily_change_pct) ? item : best);
+    assert.match(commodities, new RegExp(escapeRegExp(largest.name)));
+  }
+  const titles = ["01 市场环境 · A股与港股通", "02 海外参考 · 美国与亚洲", "03 宏观、利率与政策预期", "04 行业强度、成交与拥挤", "05 风险压力指标", "06 跨市场情绪 · 逆向风险"];
+  for (const title of titles) {
+    const summary = summaryFor(html, title);
+    assert.ok(summary.length > 0, `${title} should summarize its available data`);
+    assert.doesNotMatch(summary, /^\d+项$/, `${title} should not be only an item count`);
+  }
+  if (snapshot.metrics.some((item) => item.indicator_id === "M1-A05/06/07")) assert.match(summaryFor(html, titles[0]), /沪深成交/);
+  if (snapshot.metrics.some((item) => item.indicator_id === "M1-C01")) assert.match(summaryFor(html, titles[1]), /标普/);
+  if (snapshot.metrics.some((item) => item.indicator_id === "M2-A01/03")) assert.match(summaryFor(html, titles[2]), /PMI/);
+  if (snapshot.metrics.some((item) => item.indicator_id === "M3-A01/03")) assert.match(summaryFor(html, titles[3]), /RPS前列/);
+  if (snapshot.metrics.some((item) => item.indicator_id === "M6-B02")) assert.match(summaryFor(html, titles[4]), /高收益债OAS/);
+  if (snapshot.metrics.some((item) => item.indicator_id.startsWith("M6-C"))) assert.match(summaryFor(html, titles[5]), /\/100/);
 });
 
 test("decision summary comes first and supporting modules use progressive disclosure", async () => {
