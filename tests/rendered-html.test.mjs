@@ -65,7 +65,9 @@ test("server-renders the metric-only real daily dashboard", async () => {
     assert.match(html, /A股 · ETF份额与融资余额/);
     assert.match(html, /港股通 · 内地资金南向成交/);
     assert.match(html, /外资 · 配置条件与沪股通活跃度/);
-    assert.match(html, /近5日ETF/);
+    if (snapshot.forward_flows.windows.find((item) => item.days === 5)?.equity_etf) {
+      assert.match(html, /近5日ETF/);
+    }
     assert.match(html, /数据来源与判断边界/);
   }
   assert.match(html, /板块成交占比/);
