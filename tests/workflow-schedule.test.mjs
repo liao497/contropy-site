@@ -19,6 +19,7 @@ test("daily workflow runs every calendar day with idempotent retries and a closi
   assert.match(workflow, /ONLY_IF_STALE/);
   assert.match(workflow, /ALERT_ON_RECOVERY/);
   assert.match(workflow, /snapshot_revision/);
+  assert.match(workflow, /snapshot_has_industry/);
   assert.match(workflow, /collector_args\+=\(--market-date-if-trading\)/);
   assert.doesNotMatch(workflow, /collector_args\+=\(--market-date "\$REPORT_DATE"\)/);
   assert.match(workflow, /report_date\.\$REVISION_ID\.md/);
@@ -31,7 +32,7 @@ test("daily workflow runs every calendar day with idempotent retries and a closi
 test("an independent freshness guard checks every calendar day", async () => {
   const guard = await readFile(new URL("../.github/workflows/dashboard-freshness-guard.yml", import.meta.url), "utf8");
 
-  for (const schedule of ["23 23 * * *", "43 23 * * *", "3 0 * * *", "3 9 * * *", "23 9 * * *"]) {
+  for (const schedule of ["23 23 * * *", "43 23 * * *", "3 0 * * *", "3 2 * * *", "3 3 * * *", "3 4 * * *", "3 9 * * *", "23 9 * * *"]) {
     assert.match(guard, new RegExp(`cron: "${schedule.replaceAll("*", "\\*")}"`));
   }
   assert.match(guard, /actions: write/);
@@ -39,4 +40,6 @@ test("an independent freshness guard checks every calendar day", async () => {
   assert.match(guard, /inputs\[only_if_stale\]=true/);
   assert.match(guard, /inputs\[alert_on_recovery\]=\$final_guard/);
   assert.match(guard, /final_guard=true/);
+  assert.match(guard, /snapshot_has_industry/);
+  assert.match(guard, /inputs\[revision_id\]/);
 });

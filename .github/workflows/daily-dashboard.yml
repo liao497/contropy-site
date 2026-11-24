@@ -73,6 +73,7 @@ jobs:
           report_date="${REQUESTED_REPORT_DATE:-$(TZ=Asia/Shanghai date +%F)}"
           snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
           snapshot_revision="$(node -p "require('./data/current-snapshot.json').run.revision_id")"
+          snapshot_has_industry="$(node -p "require('./data/current-snapshot.json').metrics.some(m => m.indicator_id === 'M3-A01/03')")"
           should_run=true
           run_role=manual
           case "$EVENT_SCHEDULE" in
@@ -96,8 +97,8 @@ jobs:
             revision_id="$REQUESTED_REVISION_ID"
           fi
           fresh=false
-          if [ "$snapshot_date" = "$report_date" ]; then
-            if [ "$revision_id" = "daily" ] || [ "$snapshot_revision" = "close" ]; then
+          if [ "$snapshot_date" = "$report_date" ] && [ "$snapshot_has_industry" = "true" ]; then
+            if [ "$run_role" != "close" ] || [[ "$snapshot_revision" == close* ]]; then
               fresh=true
             fi
           fi
@@ -116,6 +117,7 @@ jobs:
             echo "- Target date: $report_date"
             echo "- Existing snapshot: $snapshot_date"
             echo "- Existing revision: $snapshot_revision"
+            echo "- Existing industry coverage: $snapshot_has_industry"
             echo "- Refresh required: $should_run"
           } >> "$GITHUB_STEP_SUMMARY"
 

@@ -30,11 +30,19 @@ test("accepts a sufficiently covered snapshot when one free-source indicator is 
   assert.match(result.stdout, /metrics validated/);
 });
 
-test("rejects a snapshot when an entire core module is unavailable", async () => {
+test("publishes other verified modules when the industry source outage is recorded", async () => {
   const snapshot = JSON.parse(await readFile(fixture, "utf8"));
   snapshot.metrics = snapshot.metrics.filter((metric) => metric.module !== "行业主题与海外映射");
+  snapshot.sector_candidates = [];
+  snapshot.capital_flows.sectors = null;
+  snapshot.data_gaps.push({ indicator_id: "M3-*", reason: "行业历史覆盖不足" });
 
-  await assert.rejects(validate(snapshot), /critical module missing: 行业主题与海外映射/);
+  await validate(snapshot);
+  snapshot.data_gaps = snapshot.data_gaps.filter((item) => item.indicator_id !== "M3-*");
+  await assert.rejects(validate(snapshot), /industry module missing without an explicit source gap/);
+  snapshot.data_gaps.push({ indicator_id: "M3-*", reason: "行业历史覆盖不足" });
+  snapshot.sector_candidates = [{ industry_name: "未核验行业" }];
+  await assert.rejects(validate(snapshot), /sector signals cannot be published/);
 });
 
 test("rejects a snapshot when commodity coverage falls below the publication floor", async () => {

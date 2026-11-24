@@ -454,7 +454,7 @@ export function SectorDashboard() {
   const industrySummary = summaryLine([
     industryLeaders.length ? `RPS前列 ${industryLeaders.join("、")}` : null,
     crowdedIndustry && `拥挤度 ${crowdedIndustry}`,
-  ]);
+  ], "行业数据暂缺，机会筛选暂停");
   const riskSummary = summaryLine(riskParts.slice(0, 2));
   const statusTone: Tone = marketDataIsStale ? "danger" : snapshot.data_state === "partial" ? "warning" : "neutral";
   const alertTone = triggeredRisks.length ? "danger" : watchingRisks.length ? "watch" : "calm";
@@ -484,8 +484,8 @@ export function SectorDashboard() {
               <p className="s-candidate-evidence">{item.evidence.join(" · ")}</p>
               <div className="s-candidate-conditions"><span><strong>确认</strong>{item.confirmation_conditions}</span><span><strong>失效</strong>{item.invalidation_conditions}</span></div>
             </article>
-          ))}</div> : <div className="s-no-signal"><strong>暂无符合筛选门槛的行业线索</strong><span>行业行情覆盖不足或强度、拥挤度与波动率未同时达标。</span></div>}
-          <p className="s-decision-note">来源：{industry.find((item) => item.indicator_id === "M3-A01/03")?.publisher ?? "行业行情免费源"} · {marketDataDate}。估值与前瞻景气未核验，不构成买入建议。</p>
+          ))}</div> : <div className="s-no-signal"><strong>{industry.length ? "暂无符合筛选门槛的行业线索" : "行业数据暂缺，机会筛选暂停"}</strong><span>{industry.length ? "强度、拥挤度与波动率未同时达标。" : "免费行业行情源覆盖不足；下次定时任务会自动重试。"}</span></div>}
+          <p className="s-decision-note">{industry.length ? `来源：${industry.find((item) => item.indicator_id === "M3-A01/03")?.publisher} · ${marketDataDate}。` : "行业风险与机会判断暂不作出。"}估值与前瞻景气未核验，不构成买入建议。</p>
         </section>
         <section className="s-decision-panel s-decision-panel--risk">
           <div className="s-section-heading"><h2>风险雷达</h2><span>{triggeredRisks.length}项触发 · {watchingRisks.length}项观察</span></div>
@@ -526,7 +526,7 @@ export function SectorDashboard() {
         <details className="s-detail"><summary><strong>01 市场环境 · A股与港股通</strong><span>{marketSummary}</span></summary><MetricTable rows={domestic} label="A股与港股通市场环境" /></details>
         <details className="s-detail"><summary><strong>02 海外参考 · 美国与亚洲</strong><span>{globalSummary}</span></summary><MetricTable rows={global} label="海外市场参考" /></details>
         <details className="s-detail"><summary><strong>03 宏观、利率与政策预期</strong><span>{macroSummary}</span></summary><MetricTable rows={macro} label="宏观利率与政策预期" /></details>
-        <details className="s-detail"><summary><strong>04 行业强度、成交与拥挤</strong><span>{industrySummary}</span></summary><MetricTable rows={industry} label="行业强度与拥挤" /></details>
+        <details className="s-detail"><summary><strong>04 行业强度、成交与拥挤</strong><span>{industrySummary}</span></summary>{industry.length ? <MetricTable rows={industry} label="行业强度与拥挤" /> : <div className="s-no-signal"><strong>行业行情暂不可用</strong><span>本期不展示未经验证的行业排名。</span></div>}</details>
         <details className="s-detail"><summary><strong>05 风险压力指标</strong><span>{riskSummary}</span></summary><MetricTable rows={riskMetrics} label="风险压力指标" /></details>
         <details className="s-detail"><summary><strong>06 跨市场情绪 · 逆向风险</strong><span>{sentimentSummary}</span></summary><MetricTable rows={sentiment} label="跨市场情绪" /></details>
       </section>

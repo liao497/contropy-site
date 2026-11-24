@@ -1075,9 +1075,14 @@ def add_industry_metrics(
     gaps: list[dict[str, str]],
 ) -> list[dict[str, Any]]:
     names = safe_call("M3-UNIVERSE", ak.stock_board_industry_name_ths, gaps)
-    if names is None or names.empty:
+    if names is None:
+        return []
+    if names.empty:
+        gaps.append({"indicator_id": "M3-UNIVERSE", "reason": "同花顺行业列表为空"})
         return []
     histories: dict[str, pd.DataFrame] = {}
+    failures: dict[str, int] = {}
+    latest_dates: dict[str, int] = {}
     with ThreadPoolExecutor(max_workers=6) as executor:
         futures = {executor.submit(ths_industry_history, str(row["name"]), report_day): str(row["name"]) for _, row in names.iterrows()}
         for future in as_completed(futures):
@@ -1086,10 +1091,15 @@ def add_industry_metrics(
                 frame = future.result()
                 if len(frame) >= 61 and frame.iloc[-1]["date"].date() == report_day:
                     histories[name] = frame
-            except Exception:
-                continue
+                else:
+                    latest = frame.iloc[-1]["date"].date().isoformat() if not frame.empty else "empty"
+                    latest_dates[latest] = latest_dates.get(latest, 0) + 1
+            except Exception as exc:
+                error = f"{type(exc).__name__}: {str(exc)[:100]}"
+                failures[error] = failures.get(error, 0) + 1
     if len(histories) < 63:
-        gaps.append({"indicator_id": "M3-*", "reason": f"行业历史仅覆盖{len(histories)}/{len(names)}，低于70%发布门槛"})
+        detail = f"；未达日期/长度要求{latest_dates}；请求失败{dict(list(failures.items())[:3])}"
+        gaps.append({"indicator_id": "M3-*", "reason": f"行业历史仅覆盖{len(histories)}/{len(names)}，低于70%发布门槛{detail}"})
         return []
     previous_days = {frame.iloc[-2]["date"].date() for frame in histories.values()}
     latest_exchange = market_turnover[0] if market_turnover else None
@@ -1149,9 +1159,9 @@ def add_industry_metrics(
                     leader[futures[future]] = value
             except Exception:
                 continue
-    # The public quote bridge rate-limits short bursts. Retry missing rows once
-    # at low concurrency so a transient 403/timeout does not become a false gap.
-    for row in rows:
+    # Bound serial retries so an outage cannot consume the scheduled job's
+    # entire 20-minute budget. The top-turnover sectors matter most here.
+    for row in sorted(rows, key=lambda item: item["amount"], reverse=True)[:12]:
         name = row["name"]
         if name in leader or name not in code_map:
             continue

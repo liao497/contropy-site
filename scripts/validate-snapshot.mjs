@@ -15,10 +15,19 @@ if (!Array.isArray(snapshot.metrics) || snapshot.metrics.length < 25) {
 const ids = new Set(snapshot.metrics.map((metric) => metric.indicator_id));
 if (ids.size !== snapshot.metrics.length) throw new Error("duplicate indicator_id detected");
 
-const requiredModules = ["市场环境", "宏观、利率与政策预期", "行业主题与海外映射"];
+const requiredModules = ["市场环境", "宏观、利率与政策预期"];
 for (const moduleName of requiredModules) {
   if (!snapshot.metrics.some((metric) => metric.module === moduleName)) {
     throw new Error(`critical module missing: ${moduleName}`);
+  }
+}
+const hasIndustry = ids.has("M3-A01/03");
+if (!hasIndustry) {
+  if (!snapshot.data_gaps?.some((gap) => gap.indicator_id === "M3-*" || gap.indicator_id === "M3-UNIVERSE")) {
+    throw new Error("industry module missing without an explicit source gap");
+  }
+  if (snapshot.sector_candidates?.length || snapshot.capital_flows?.sectors) {
+    throw new Error("sector signals cannot be published without current industry data");
   }
 }
 if (!snapshot.metrics.some((metric) => ["重点风险", "跨市场情绪"].includes(metric.module))) {
