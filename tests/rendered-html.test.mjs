@@ -72,7 +72,11 @@ test("server-renders the metric-only real daily dashboard", async () => {
   assert.match(html, /北向日净买额/);
   assert.match(html, /重大新闻/);
   assert.match(html, /航运要道/);
-  assert.match(html, /霍尔木兹海峡/);
+  if (snapshot.shipping?.length) {
+    assert.match(html, new RegExp(escapeRegExp(snapshot.shipping[0].route_name)));
+  } else {
+    assert.doesNotMatch(html, /aria-label="航运要道通行情况"/);
+  }
   assert.match(html, /主要大宗商品/);
   assert.match(html, /当日/);
   assert.match(html, /近一周/);
@@ -136,7 +140,7 @@ test("decision summary comes first and supporting modules use progressive disclo
   const risk = html.indexOf("风险雷达");
   const details = html.indexOf("指标明细");
   assert.ok(opportunity > 0 && risk > opportunity && details > risk);
-  assert.match(html, snapshot.sector_candidates?.length ? /待确认/ : /暂无符合筛选门槛的行业线索/);
+  assert.match(html, snapshot.sector_candidates?.length ? /待确认/ : snapshot.metrics.some((item) => item.indicator_id === "M3-A01/03") ? /暂无符合筛选门槛的行业线索/ : /行业数据暂缺，机会筛选暂停/);
   assert.match(html, /估值.*景气/);
   assert.doesNotMatch(html, /<details[^>]*\sopen(?:=|\s|>)/);
   assert.match(html, /行情数据日/);

@@ -69,8 +69,10 @@ jobs:
           REQUESTED_REVISION_ID: ${{ inputs.revision_id }}
           ONLY_IF_STALE: ${{ inputs.only_if_stale }}
           ALERT_ON_RECOVERY: ${{ inputs.alert_on_recovery }}
+          REQUESTED_MARKET_DATE: ${{ inputs.market_date }}
         run: |
           report_date="${REQUESTED_REPORT_DATE:-$(TZ=Asia/Shanghai date +%F)}"
+          beijing_hhmm="$(TZ=Asia/Shanghai date +%H%M)"
           snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
           snapshot_revision="$(node -p "require('./data/current-snapshot.json').run.revision_id")"
           snapshot_has_industry="$(node -p "require('./data/current-snapshot.json').metrics.some(m => m.indicator_id === 'M3-A01/03')")"
@@ -80,10 +82,16 @@ jobs:
             "37 21 * * *") run_role=primary ;;
             "7 22 * * *"|"37 22 * * *") run_role=backup ;;
             "7 23 * * *") run_role=watchdog ;;
-            "30 8 * * *") run_role=close ;;
+            "30 8 * * *")
+              if [ "$beijing_hhmm" -ge 1630 ]; then run_role=close; else run_role=backup; fi
+              ;;
           esac
           if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "$REQUESTED_EDITION" = "close" ]; then
-            run_role=close
+            if [ "$beijing_hhmm" -ge 1630 ] || [ -n "$REQUESTED_MARKET_DATE" ] || [ "$report_date" != "$(TZ=Asia/Shanghai date +%F)" ]; then
+              run_role=close
+            else
+              run_role=backup
+            fi
           fi
           revision_id=daily
           if [ "$run_role" = "close" ]; then
@@ -94,7 +102,9 @@ jobs:
               echo "Invalid revision_id: use 1-32 lowercase letters, digits or hyphens" >&2
               exit 1
             fi
-            revision_id="$REQUESTED_REVISION_ID"
+            if [ "$REQUESTED_EDITION" != "close" ] || [ "$run_role" = "close" ]; then
+              revision_id="$REQUESTED_REVISION_ID"
+            fi
           fi
           fresh=false
           if [ "$snapshot_date" = "$report_date" ] && [ "$snapshot_has_industry" = "true" ]; then
@@ -221,15 +231,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          for alert_title in \
-            "[自动告警] 看板未按时更新 $REPORT_DATE" \
-            "[自动告警] 看板未按时更新 $REPORT_DATE ($REVISION_ID)"; do
-            issue_number="$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title == \"$alert_title\") | .number" | head -n 1)"
-            if [ -n "$issue_number" ]; then
-              gh issue comment "$issue_number" \
-                --body "自动补跑已完成，$REPORT_DATE 的 $REVISION_ID 版本已经提交，Cloudflare部署已触发。"
-              gh issue close "$issue_number" --reason completed
-            fi
+          if [ "$(node -p "require('./data/current-snapshot.json').metrics.some(m => m.indicator_id === 'M3-A01/03')")" != "true" ]; then
+            echo "::warning title=Industry data pending::Other verified modules were published; industry recovery remains open."
+            exit 0
+          fi
+          issue_numbers="$(gh issue list --state open --limit 100 --json number,title --jq ".[] | select(.title | startswith(\"[自动告警] 看板未按时更新 $REPORT_DATE\")) | .number")"
+          for issue_number in $issue_numbers; do
+            gh issue comment "$issue_number" \
+              --body "自动补跑已完成，$REPORT_DATE 的 $REVISION_ID 版本已经提交，Cloudflare部署已触发。"
+            gh issue close "$issue_number" --reason completed
           done
 
       - name: Alert when watchdog recovery fails

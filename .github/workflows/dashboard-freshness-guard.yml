@@ -34,16 +34,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           report_date="$(TZ=Asia/Shanghai date +%F)"
+          beijing_hhmm="$(TZ=Asia/Shanghai date +%H%M)"
           snapshot_date="$(node -p "require('./data/current-snapshot.json').report_date")"
           snapshot_revision="$(node -p "require('./data/current-snapshot.json').run.revision_id")"
           snapshot_has_industry="$(node -p "require('./data/current-snapshot.json').metrics.some(m => m.indicator_id === 'M3-A01/03')")"
           edition=daily
           final_guard=false
           case "$EVENT_SCHEDULE" in
-            "3 9 * * *") edition=close ;;
-            "23 9 * * *") edition=close; final_guard=true ;;
+            "23 9 * * *") final_guard=true ;;
             "3 0 * * *") final_guard=true ;;
           esac
+          if [ "$beijing_hhmm" -ge 1630 ]; then edition=close; fi
 
           fresh=false
           if [ "$snapshot_date" = "$report_date" ] && [ "$snapshot_has_industry" = "true" ]; then
