@@ -3,7 +3,7 @@
   "indicator_version": "indicator-v1.1.0",
   "model_version": "sector-swing-v1.1.0",
   "report_date": "2026-11-28",
-  "as_of": "2026-11-28T02:24:00+08:00",
+  "as_of": "2026-11-28T18:09:18+08:00",
   "timezone": "Asia/Shanghai",
   "data_state": "partial",
   "metrics": [
@@ -21,7 +21,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:05:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "乐咕乐股（AKShare采集）",
       "canonical_url": "https://legulegu.com/stockdata/market-activity",
@@ -32,7 +32,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "原始市场活动计数",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A03/04",
@@ -48,7 +48,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:05:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "乐咕乐股（AKShare采集）",
       "canonical_url": "https://legulegu.com/stockdata/market-activity",
@@ -59,7 +59,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "原始市场活动计数",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A05/06/07",
@@ -75,7 +75,7 @@
       "yoy_period": null,
       "published_at": "2026-11-27T17:00:00+08:00",
       "available_at": "2026-11-27T17:00:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "上海证券交易所 / 深圳证券交易所",
       "canonical_url": "https://www.sse.com.cn/market/stockdata/overview/day/; https://www.szse.cn/market/overview/index.html",
@@ -86,7 +86,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "上交所股票成交金额(亿元)+深交所股票成交金额(元)/1e8；暂不含北交所",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A08",
@@ -102,7 +102,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:05:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "新浪财经指数行情（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/realstock/company/sh000300/nc.shtml; https://finance.sina.com.cn/realstock/company/sh000852/nc.shtml",
@@ -113,7 +113,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "沪深300区间收益-中证1000区间收益；5/20交易日",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A09",
@@ -129,7 +129,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:05:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "国证指数 / 新浪财经（AKShare采集）",
       "canonical_url": "https://www.cnindex.com.cn/zh_indices/cni/style/index.html",
@@ -140,7 +140,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "国证价值区间收益-国证成长区间收益；5/20交易日",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A12",
@@ -156,7 +156,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:05:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "新浪财经指数行情（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/stock/",
@@ -167,7 +167,7 @@
       "interpretation_type": "risk",
       "interpretation": "科创5020日实现波动率达到76.0%。",
       "transform_formula": "日收益标准差×sqrt(252)",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A13",
@@ -183,7 +183,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:05:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "新浪财经指数行情（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/stock/",
@@ -194,7 +194,7 @@
       "interpretation_type": "watch",
       "interpretation": "科创50ATR升至4.87%，单日波动压力偏高。",
       "transform_formula": "14日真实波幅均值/最新收盘",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A14",
@@ -210,7 +210,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:05:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "新浪财经指数行情（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/stock/",
@@ -221,7 +221,7 @@
       "interpretation_type": "risk",
       "interpretation": "北证5020日最大回撤-18.5%。",
       "transform_formula": "窗口内收盘价/此前峰值-1；20/60交易日",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A10/11",
@@ -237,7 +237,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:10:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "腾讯证券全市场行情（AKShare采集）",
       "canonical_url": "https://gu.qq.com/",
@@ -248,7 +248,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "当日成交额降序前50/100之和÷有效A股成交额总和；含沪深京可得证券",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A15/16",
@@ -264,7 +264,7 @@
       "yoy_period": null,
       "published_at": "2026-11-26T18:00:00+08:00",
       "available_at": "2026-11-26T18:00:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "上海证券交易所 / 深圳证券交易所",
       "canonical_url": "https://www.sse.com.cn/market/othersdata/margin/; https://www.szse.cn/disclosure/margin/index.html",
@@ -275,7 +275,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "沪深融资余额求和；沪深融资买入额/当日沪深股票成交额",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-A17/18",
@@ -291,7 +291,7 @@
       "yoy_period": null,
       "published_at": "2026-11-27T18:00:00+08:00",
       "available_at": "2026-11-27T18:00:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "上海证券交易所",
       "canonical_url": "https://www.sse.com.cn/market/funddata/volumn/etfvolumn/",
@@ -302,7 +302,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "938只上交所ETF基金份额求和/1e8",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-B01/02",
@@ -318,7 +318,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T16:20:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "东方财富（AKShare采集）",
       "canonical_url": "https://data.eastmoney.com/hsgt/index.html",
@@ -329,23 +329,23 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "港股通沪+港股通深成交净买额；接口换算为亿元",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-C01",
       "indicator_name": "美国宽基（上一交易日）",
       "module": "市场环境",
       "frequency": "daily",
-      "value": "标普7,182.78（-0.25%）；纳指23,585.80（-0.62%）",
+      "value": "标普7,182.78（-0.25%）；纳指24,129.50（+2.31%）",
       "unit": null,
       "period": "2026-11-25",
-      "previous_value": "标普7,201.09；纳指23,733.54",
+      "previous_value": "标普7,201.09；纳指23,585.80",
       "previous_period": "2026-11-24",
-      "yoy_value": "标普+6.2%；纳指+2.4%",
+      "yoy_value": "标普+6.2%；纳指+3.9%",
       "yoy_period": "2025-11-25",
       "published_at": null,
       "available_at": "2026-11-25T00:00:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "Federal Reserve Bank of St. Louis (FRED)",
       "canonical_url": "https://fred.stlouisfed.org/series/SP500; https://fred.stlouisfed.org/series/NASDAQCOM",
@@ -356,23 +356,23 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "相邻有效交易日收盘价涨跌幅；同比为较一年前最近有效日",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-C02",
       "indicator_name": "美国科技链（半导体 / 机器人）",
       "module": "市场环境",
       "frequency": "daily",
-      "value": "费城半导体8,774.86（日-0.65% / 5日-9.10%）；机器人1,730.92（日-1.18% / 5日-3.68%）",
+      "value": "费城半导体9,186.71（日+4.69% / 5日-2.47%）；机器人1,792.96（日+3.11% / 5日+7.06%）",
       "unit": null,
-      "period": "2026-11-25",
-      "previous_value": "费城半导体8,832.50；机器人1,751.56",
-      "previous_period": "2026-11-24",
-      "yoy_value": "费城半导体+30.7%；机器人-3.5%",
-      "yoy_period": "2025-11-25",
+      "period": "2026-11-27",
+      "previous_value": "费城半导体8,774.86；机器人1,738.83",
+      "previous_period": "2026-11-25",
+      "yoy_value": "费城半导体+33.2%；机器人-1.0%",
+      "yoy_period": "2025-11-27",
       "published_at": null,
-      "available_at": "2026-11-25T00:00:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-27T00:00:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "Nasdaq / FRED",
       "canonical_url": "https://fred.stlouisfed.org/series/NASDAQSOX; https://fred.stlouisfed.org/series/NASDAQNQROBO",
@@ -383,7 +383,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "相邻有效日与5个有效交易日前收益；机器人指数为Nasdaq CTA AI & Robotics代理",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-C03",
@@ -399,7 +399,7 @@
       "yoy_period": "2025-11-27",
       "published_at": null,
       "available_at": "2026-11-27T00:00:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "Federal Reserve Bank of St. Louis (FRED)",
       "canonical_url": "https://fred.stlouisfed.org/series/NIKKEI225",
@@ -410,23 +410,23 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "相邻有效交易日收盘价涨跌幅",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-C04",
       "indicator_name": "韩国市场 / 韩国科技链（代理）",
       "module": "市场环境",
       "frequency": "daily",
-      "value": "韩国指数2,245.84（-7.02%）；韩国科技7,308.45（-10.10%）",
+      "value": "韩国指数2,373.44（+5.12%）；韩国科技7,896.31（+5.97%）",
       "unit": null,
-      "period": "2026-11-25",
-      "previous_value": "韩国指数2,415.28；韩国科技8,129.42",
-      "previous_period": "2026-11-24",
-      "yoy_value": "韩国指数+39.8%；韩国科技+79.0%",
-      "yoy_period": "2025-11-25",
+      "period": "2026-11-27",
+      "previous_value": "韩国指数2,257.94；韩国科技7,451.14",
+      "previous_period": "2026-11-26",
+      "yoy_value": "韩国指数+42.2%；韩国科技+85.1%",
+      "yoy_period": "2025-11-27",
       "published_at": null,
-      "available_at": "2026-11-25T00:00:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-27T00:00:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "Nasdaq / FRED",
       "canonical_url": "https://fred.stlouisfed.org/series/NASDAQNQKR; https://fred.stlouisfed.org/series/NASDAQNQKR10",
@@ -437,7 +437,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "韩国综合与科技参考指数；不是KOSPI官方收盘，待接入需密钥的KRX OPEN API后替换",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-C05",
@@ -453,7 +453,7 @@
       "yoy_period": "2025-11-26",
       "published_at": null,
       "available_at": "2026-11-26T00:00:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "Federal Reserve Bank of St. Louis (FRED)",
       "canonical_url": "https://fred.stlouisfed.org/series/VIXCLS",
@@ -464,23 +464,23 @@
       "interpretation_type": "watch",
       "interpretation": "VIX进入观察区间。",
       "transform_formula": "CBOE VIX日收盘，经FRED分发",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-C06",
       "indicator_name": "美国2Y / 10Y / 10Y实际利率",
       "module": "市场环境",
       "frequency": "daily",
-      "value": "4.63% / 4.91% / 2.79%",
+      "value": "4.61% / 4.85% / 2.73%",
       "unit": null,
-      "period": "2026-11-24",
-      "previous_value": "4.63% / 4.92% / 2.79%",
-      "previous_period": "2026-11-23",
+      "period": "2026-11-25",
+      "previous_value": "4.63% / 4.91% / 2.79%",
+      "previous_period": "2026-11-24",
       "yoy_value": null,
       "yoy_period": null,
       "published_at": null,
-      "available_at": "2026-11-24T00:00:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-25T00:00:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "U.S. Treasury / Federal Reserve Bank of St. Louis (FRED)",
       "canonical_url": "https://fred.stlouisfed.org/series/DGS2; https://fred.stlouisfed.org/series/DGS10; https://fred.stlouisfed.org/series/DFII10",
@@ -491,7 +491,7 @@
       "interpretation_type": "watch",
       "interpretation": "美国10年实际利率偏高，对长久期成长估值形成压力。",
       "transform_formula": "美国财政部常期限收益率与TIPS实际收益率",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-C07",
@@ -507,7 +507,7 @@
       "yoy_period": "2025-11-20",
       "published_at": null,
       "available_at": "2026-11-20T00:00:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "Federal Reserve Board / FRED",
       "canonical_url": "https://fred.stlouisfed.org/series/DTWEXBGS; https://fred.stlouisfed.org/series/DEXCHUS",
@@ -518,7 +518,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "FRED日度观测",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M1-C08",
@@ -534,7 +534,7 @@
       "yoy_period": "2025-11-24",
       "published_at": null,
       "available_at": "2026-11-24T00:00:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "U.S. Energy Information Administration / FRED",
       "canonical_url": "https://fred.stlouisfed.org/series/DCOILWTICO",
@@ -545,7 +545,7 @@
       "interpretation_type": "watch",
       "interpretation": "油价免费源更新滞后，仅作背景参考。",
       "transform_formula": "相邻有效日涨跌幅",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M2-A01/03",
@@ -561,7 +561,7 @@
       "yoy_period": null,
       "published_at": "2026-10-31T09:30:00+08:00",
       "available_at": null,
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "国家统计局",
       "canonical_url": "https://www.stats.gov.cn/sj/zxfbhjd/202607/t20260731_1964252.html",
@@ -572,7 +572,7 @@
       "interpretation_type": "risk",
       "interpretation": "制造业和非制造业PMI均低于50，景气同步回落。",
       "transform_formula": "官方指数；变化为较上月百分点",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M2-B01/02",
@@ -587,8 +587,8 @@
       "yoy_value": "M1 +4.4%；M2 +7.1%（官方同比）",
       "yoy_period": "2026年10月份",
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "东方财富经济数据库（人民银行口径汇编）",
       "canonical_url": "https://data.eastmoney.com/cjsj/hbgyl.html",
@@ -599,7 +599,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "M1同比-M2同比",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M2-B10",
@@ -614,8 +614,8 @@
       "yoy_value": null,
       "yoy_period": null,
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "东方财富经济数据库（AKShare采集）",
       "canonical_url": "https://data.eastmoney.com/cjsj/zmgzsyl.html",
@@ -626,7 +626,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "10Y-2Y，以基点表示",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M2-A08",
@@ -641,8 +641,8 @@
       "yoy_value": "CPI +0.7%；PPI +5.7%（官方同比口径）",
       "yoy_period": "2026年10月份",
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "东方财富经济数据库（国家统计局口径汇编）",
       "canonical_url": "https://data.eastmoney.com/cjsj/cpi.html; https://data.eastmoney.com/cjsj/ppi.html",
@@ -653,7 +653,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "官方口径经第三方结构化传输",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M2-A04/06",
@@ -668,8 +668,8 @@
       "yoy_value": "工业+4.8%；投资-8.1%；社零+0.4%（官方同比）",
       "yoy_period": "2026年10月",
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "国家统计局",
       "canonical_url": "https://data.stats.gov.cn/dg/website/page.html#/pc/national/monthData",
@@ -680,7 +680,7 @@
       "interpretation_type": "watch",
       "interpretation": "固定资产投资累计同比为负，关注投资拖累能否收窄。",
       "transform_formula": "国家统计局月度数据接口；投资为不含农户累计同比",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M2-B07",
@@ -695,8 +695,8 @@
       "yoy_value": null,
       "yoy_period": null,
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "全国银行间同业拆借中心口径 / 东方财富传输",
       "canonical_url": "https://www.chinamoney.com.cn/chinese/bklpr/",
@@ -707,7 +707,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "LPR发布值；第三方接口传输",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M2-B09",
@@ -722,8 +722,8 @@
       "yoy_value": null,
       "yoy_period": null,
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "Shibor口径 / 金十结构化传输",
       "canonical_url": "https://www.shibor.org/; https://datacenter.jin10.com/reportType/dc_shibor",
@@ -734,7 +734,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "Shibor发布值；第三方结构化传输",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M6-B02",
@@ -749,8 +749,8 @@
       "yoy_value": "OAS +0.77pct",
       "yoy_period": "2025-11-26",
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "ICE BofA / Chicago Fed / St. Louis Fed（FRED）",
       "canonical_url": "https://fred.stlouisfed.org/series/BAMLH0A0HYM2; https://fred.stlouisfed.org/series/NFCI; https://fred.stlouisfed.org/series/STLFSI4",
@@ -761,7 +761,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "硬阈值v1：OAS>=5%、NFCI>=0.25或STLFSI4>=1触发；周频指标不前填成日频",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M3-A01/03",
@@ -777,7 +777,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:10:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "同花顺行业指数（AKShare采集）",
       "canonical_url": "https://q.10jqka.com.cn/thshy/",
@@ -788,7 +788,7 @@
       "interpretation_type": "opportunity",
       "interpretation": "仅作为波段强度候选，需与前瞻景气和拥挤度交叉确认。",
       "transform_formula": "行业5/20/60日收益的横截面百分位",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M3-A06/07",
@@ -804,7 +804,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T17:00:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "同花顺行业指数 / 沪深股票成交额",
       "canonical_url": "https://q.10jqka.com.cn/thshy/",
@@ -815,7 +815,7 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "行业当日成交额/沪深股票成交额；变化项为行业自身成交额/20日均值",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M3-A08/09",
@@ -831,7 +831,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:10:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "同花顺行业指数（AKShare采集）",
       "canonical_url": "https://q.10jqka.com.cn/thshy/",
@@ -842,7 +842,7 @@
       "interpretation_type": "risk",
       "interpretation": "高波动行业在机会评分中应降低仓位或等待波动收敛。",
       "transform_formula": "20日收益标准差年化；ATR14/收盘价",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M3-A10",
@@ -858,7 +858,7 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T17:00:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "同花顺行业指数 / 沪深股票成交额",
       "canonical_url": "https://q.10jqka.com.cn/thshy/",
@@ -869,14 +869,14 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "55%成交占比横截面分位+45%成交额/20日均值横截面分位；观察阈值另需双分位>=90且成交/20日均值>=1.8",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M3-A11",
       "indicator_name": "行业龙头成交集中度（前3）",
       "module": "行业主题与海外映射",
       "frequency": "daily",
-      "value": "油气开采及服务 77.7%；石油加工贸易 75.4%；白酒 73.9%；综合 56.4%；贸易 45.1%；小家电 44.3%；光伏设备 41.4%；游戏 38.3%",
+      "value": "油气开采及服务 77.7%；石油加工贸易 75.4%；综合 56.4%；影视院线 43.1%；能源金属 42.1%；服装家纺 38.9%；游戏 38.3%；证券 33.1%",
       "unit": null,
       "period": "2026-11-27",
       "previous_value": null,
@@ -885,18 +885,18 @@
       "yoy_period": null,
       "published_at": null,
       "available_at": "2026-11-27T15:10:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "同花顺行业成分行情",
       "canonical_url": "https://q.10jqka.com.cn/thshy/",
       "field_name": "成分股成交额",
       "confidence": 0.69,
-      "coverage": 0.7666666666666667,
+      "coverage": 0.8222222222222222,
       "freshness": 1.0,
       "interpretation_type": "watch",
       "interpretation": "部分行业由少数龙头贡献大部分成交，追涨时注意单点脆弱性。",
       "transform_formula": "行业内成交额前3股票之和/行业指数成分成交额",
-      "revision_id": "daily"
+      "revision_id": "close-repair-1808"
     },
     {
       "indicator_id": "M6-C01",
@@ -911,8 +911,8 @@
       "yoy_value": null,
       "yoy_period": null,
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "交易所数据与市场活动派生",
       "canonical_url": "local://sentiment/a-share",
@@ -923,7 +923,7 @@
       "interpretation_type": "risk",
       "interpretation": "情绪和风险定价进入过热区，逆向风险上升。",
       "transform_formula": "50%上涨占比+30%涨跌停结构+10%量能+10%融资活跃度；threshold-v1",
-      "revision_id": "daily",
+      "revision_id": "close-repair-1808",
       "component_summary": "上涨占比96.5% · 涨跌停435/1 · 量能1.23×20日均值 · 融资买入占比7.56%"
     },
     {
@@ -931,16 +931,16 @@
       "indicator_name": "美股情绪温度",
       "module": "跨市场情绪",
       "frequency": "daily",
-      "value": "49/100 · 中性",
+      "value": "53/100 · 中性",
       "unit": null,
       "period": "2026-11-25",
-      "previous_value": "49/100",
+      "previous_value": "50/100",
       "previous_period": "2026-11-24",
       "yoy_value": null,
       "yoy_period": null,
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "Cboe / FRED",
       "canonical_url": "https://www.cboe.com/us/options/market_statistics/daily/; https://fred.stlouisfed.org/series/VIXCLS",
@@ -951,8 +951,8 @@
       "interpretation_type": "none",
       "interpretation": null,
       "transform_formula": "40%VIX逆向分+40%股票期权Put/Call逆向分+20%标普/纳指日动量；threshold-v1",
-      "revision_id": "daily",
-      "component_summary": "VIX 26.80 · 股票期权Put/Call 0.64 · 标普/纳指日动量 -0.25%/-0.62%"
+      "revision_id": "close-repair-1808",
+      "component_summary": "VIX 26.80 · 股票期权Put/Call 0.64 · 标普/纳指日动量 -0.25%/+2.31%"
     },
     {
       "indicator_id": "M6-C03",
@@ -967,8 +967,8 @@
       "yoy_value": null,
       "yoy_period": null,
       "published_at": null,
-      "available_at": "2026-11-28T02:24:00+08:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "available_at": "2026-11-28T18:09:18+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E3",
       "publisher": "FRED / 东方财富互联互通汇编",
       "canonical_url": "https://fred.stlouisfed.org/series/NIKKEI225; https://data.eastmoney.com/hsgt/index.html",
@@ -979,7 +979,7 @@
       "interpretation_type": "watch",
       "interpretation": "风险偏好偏高，若继续上升需防范拥挤。",
       "transform_formula": "60%日经日动量+40%南向成交净买额标准分；韩国与VHSI缺失；threshold-v1",
-      "revision_id": "daily",
+      "revision_id": "close-repair-1808",
       "component_summary": "日经225日动量 +2.11% · 南向成交净买额 +45.87亿元"
     },
     {
@@ -987,16 +987,16 @@
       "indicator_name": "欧洲市场情绪温度",
       "module": "跨市场情绪",
       "frequency": "daily",
-      "value": "14/100 · 极度悲观",
+      "value": "25/100 · 偏悲观",
       "unit": null,
       "period": "2026-11-26",
-      "previous_value": "13/100",
+      "previous_value": "25/100",
       "previous_period": "2026-11-25",
       "yoy_value": "+73bp",
       "yoy_period": "2025-11-26",
       "published_at": null,
       "available_at": "2026-11-26T00:00:00",
-      "retrieved_at": "2026-11-28T02:24:00+08:00",
+      "retrieved_at": "2026-11-28T18:09:18+08:00",
       "source_tier": "E1",
       "publisher": "ICE BofA / FRED",
       "canonical_url": "https://fred.stlouisfed.org/series/BAMLHE00EHYIOAS; https://fred.stlouisfed.org/series/NASDAQNQEURO50",
@@ -1005,10 +1005,10 @@
       "coverage": 0.78,
       "freshness": 0.88,
       "interpretation_type": "watch",
-      "interpretation": "情绪接近恐慌区，仅作反转观察，不等于买点。",
+      "interpretation": "风险偏好偏弱，需等待价格和广度止跌确认。",
       "transform_formula": "80%欧元高收益债OAS三年历史分位逆向分+20%NASDAQ Euro 50日动量；低利差=高乐观；threshold-v1",
-      "revision_id": "daily",
-      "component_summary": "欧元高收益债利差 3.59% · 三年低位86.9%分位 · NASDAQ Euro 50日动量 -2.02%"
+      "revision_id": "close-repair-1808",
+      "component_summary": "欧元高收益债利差 3.59% · 三年低位86.9%分位 · NASDAQ Euro 50日动量 +1.28%"
     }
   ],
   "opportunities": [],
@@ -1126,67 +1126,82 @@
       "tone": "danger",
       "affected_assets": "全球利率 / 成长估值 / 汇率",
       "market_impact": "关注政策路径是否改变实际利率和成长资产估值。",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "category": "地缘与能源",
-      "headline": "胡塞武装称过去24小时沙特联军发动104次空袭和导弹袭击",
-      "summary": "【胡塞武装称过去24小时沙特联军发动104次空袭和导弹袭击】当地时间27日晚，也门胡塞武装称，过去24小时内，沙特主导的联军对也门首都萨那以及焦夫省、塔伊兹省、阿姆兰省、哈杰省、萨达省、荷台达省、拉赫季省、贝达省和达利阿省发动了104次空袭和导弹袭击，造成数十名平民伤亡。",
-      "published_at": "2026-11-28T02:13:07+08:00",
+      "headline": "沙特：拦截并摧毁了也门胡塞武装向利雅得发射的巡航导弹",
+      "summary": "沙特领导的联盟表示，其拦截并摧毁了也门胡塞武装向利雅得发射的巡航导弹。",
+      "published_at": "2026-11-28T11:15:36+08:00",
       "time_basis": "媒体发布时间",
       "source_name": "东方财富全球财经快讯",
-      "source_url": "https://finance.eastmoney.com/a/202611283942121951.html",
+      "source_url": "https://finance.eastmoney.com/a/202611283942344360.html",
       "source_type": "media_monitoring",
       "impact_level": "high",
       "tone": "danger",
       "affected_assets": "原油 / 航运 / 全球风险资产",
       "market_impact": "关注原油风险溢价、航运绕行与全球风险偏好是否同步变化。",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "category": "地缘与能源",
-      "headline": "以军袭击加沙地带多地 造成1死多伤",
-      "summary": "【以军袭击加沙地带多地 造成1死多伤】当地时间27日，据总台记者消息，以色列国防军当天傍晚在加沙地带多地发动军事袭击，造成1名巴勒斯坦人死亡、多人受伤。",
-      "published_at": "2026-11-28T00:33:19+08:00",
+      "headline": "伊朗称两艘油轮在霍尔木兹海峡发生爆炸",
+      "summary": "【伊朗称两艘油轮在霍尔木兹海峡发生爆炸】当地时间28日凌晨，伊朗伊斯兰革命卫队海军表示，几小时前，两艘油轮在霍尔木兹海峡爆炸并起火。其中一艘在海塞卜港附近触雷，另一艘在霍尔木兹海峡以东“未经授权”航线上航行时触雷。与此前发生爆炸的油轮类似，这些船只通过关闭定位系统，试图秘密穿越霍尔木兹海峡，随后，它们在该海峡南部海岸发生爆炸并起火。",
+      "published_at": "2026-11-28T06:20:23+08:00",
       "time_basis": "媒体发布时间",
       "source_name": "东方财富全球财经快讯",
-      "source_url": "https://finance.eastmoney.com/a/202611283942109251.html",
+      "source_url": "https://finance.eastmoney.com/a/202611283942141946.html",
       "source_type": "media_monitoring",
       "impact_level": "high",
       "tone": "danger",
       "affected_assets": "原油 / 航运 / 全球风险资产",
       "market_impact": "关注原油风险溢价、航运绕行与全球风险偏好是否同步变化。",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
-      "category": "地缘与能源",
-      "headline": "科威特召见伊朗大使 抗议周四发生的袭击事件",
-      "summary": "科威特召见伊朗大使，抗议周四发生的袭击事件。",
-      "published_at": "2026-11-27T22:32:51+08:00",
-      "time_basis": "媒体发布时间",
-      "source_name": "东方财富全球财经快讯",
-      "source_url": "https://finance.eastmoney.com/a/202611273942054188.html",
+      "category": "主要央行",
+      "headline": "Dollar Rises Toward Best Monthly Streak Since 2024 on AI Risk",
+      "summary": null,
+      "published_at": "2026-11-28T06:30:00+08:00",
+      "time_basis": "GDELT首次监测",
+      "source_name": "livemint.com",
+      "source_url": "https://www.livemint.com/market/dollar-rises-toward-best-monthly-streak-since-2024-on-ai-risk-11795814323879.html",
       "source_type": "media_monitoring",
       "impact_level": "high",
       "tone": "danger",
-      "affected_assets": "原油 / 航运 / 全球风险资产",
-      "market_impact": "关注原油风险溢价、航运绕行与全球风险偏好是否同步变化。",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "affected_assets": "全球利率 / 成长估值 / 汇率",
+      "market_impact": "关注政策路径是否改变实际利率和成长资产估值。",
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
-      "category": "地缘与能源",
-      "headline": "哈马斯官员证实哈亚之子在以军空袭中幸存",
-      "summary": "【哈马斯官员证实哈亚之子在以军空袭中幸存】当地时间11月27日，巴勒斯坦伊斯兰抵抗运动（哈马斯）高级官员纳伊姆证实，哈马斯领导人哈亚的儿子当天凌晨在加沙城里马尔社区一处公寓遭以军空袭，但本人及其家人均在袭击中幸存。纳伊姆表示，以军此次袭击行径属于“国家恐怖主义”。他表示，只要以色列方面持续采取此类行动且未受追究，中东地区就无法实现任何真正的安全与稳定。",
-      "published_at": "2026-11-27T21:41:46+08:00",
-      "time_basis": "媒体发布时间",
-      "source_name": "东方财富全球财经快讯",
-      "source_url": "https://finance.eastmoney.com/a/202611273941971827.html",
+      "category": "政要发言",
+      "headline": "New trade war could be brewing following tariff proposal",
+      "summary": null,
+      "published_at": "2026-11-27T09:30:00+08:00",
+      "time_basis": "GDELT首次监测",
+      "source_name": "wset.com",
+      "source_url": "https://wset.com/news/nation-world/new-trade-war-could-be-brewing-following-tariff-proposal-china-eu-india-japan",
       "source_type": "media_monitoring",
       "impact_level": "high",
       "tone": "danger",
-      "affected_assets": "原油 / 航运 / 全球风险资产",
-      "market_impact": "关注原油风险溢价、航运绕行与全球风险偏好是否同步变化。",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "affected_assets": "全球风险资产 / 出口链 / 汇率",
+      "market_impact": "关注关税、制裁或政策措辞是否形成可执行措施。",
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
+    },
+    {
+      "category": "政要发言",
+      "headline": "Brazil Embraer criticizes new US tariffs , warns of air travel inflation",
+      "summary": null,
+      "published_at": "2026-11-27T07:45:00+08:00",
+      "time_basis": "GDELT首次监测",
+      "source_name": "spokesman.com",
+      "source_url": "https://www.spokesman.com/stories/2026/nov/26/brazils-embraer-criticizes-new-us-tariffs-warns-of/",
+      "source_type": "media_monitoring",
+      "impact_level": "high",
+      "tone": "danger",
+      "affected_assets": "全球风险资产 / 出口链 / 汇率",
+      "market_impact": "关注关税、制裁或政策措辞是否形成可执行措施。",
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "category": "主要央行",
@@ -1201,52 +1216,37 @@
       "tone": "warning",
       "affected_assets": "全球利率 / 成长估值 / 汇率",
       "market_impact": "关注政策路径是否改变实际利率和成长资产估值。",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
-    },
-    {
-      "category": "主要央行",
-      "headline": "瑞银建议逢低买入白银 预计2027年将大幅反弹",
-      "summary": "【瑞银建议逢低买入白银 预计2027年将大幅反弹】瑞银认为，白银近期跌幅过大。该行指出，白银价格较2026年高点暴跌近70%，此次抛售是数十年来最严重的跌势之一。瑞银策略师多米尼克·施尼德表示，白银价格已出现过度下跌。与此同时，金银比升至88，意味着白银的相对估值有所改善。瑞银预计，美联储将在2027年第一季度结束加息周期，随后通胀将逐步回落，市场对降息的预期也将重新升温。该行倾向于在未来数月做多白银，并预计受价格波动性更高的影响，白银的反弹幅度可能超过黄金。",
-      "published_at": "2026-11-28T00:04:16+08:00",
-      "time_basis": "媒体发布时间",
-      "source_name": "东方财富全球财经快讯",
-      "source_url": "https://finance.eastmoney.com/a/202611283942106327.html",
-      "source_type": "media_monitoring",
-      "impact_level": "medium",
-      "tone": "warning",
-      "affected_assets": "全球利率 / 成长估值 / 汇率",
-      "market_impact": "关注政策路径是否改变实际利率和成长资产估值。",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
-    },
-    {
-      "category": "主要央行",
-      "headline": "欧洲央行Nagel暗示12月或需再次加息 此前法国和西班牙通胀超预期放缓",
-      "summary": "【欧洲央行Nagel暗示12月或需再次加息 此前法国和西班牙通胀超预期放缓】欧洲央行管理委员会委员Joachim Nagel表示，通胀顽固意味着欧洲央行下个月可能不得不再次加息。Nagel在法兰克福面向青年群体发表讲话时指出，高企的价格压力对欧洲央行而言依然是一项挑战。尽管通胀前景预计将在2028年改善，但“那距离现在还有很长一段时间”。“我们预计2027年全年通胀率都将高于3% —— 由于能源价格具有较强的传导效应，总体通胀和核心通胀都将如此，”Nagel在其所在机构举办…",
-      "published_at": "2026-11-27T22:40:51+08:00",
-      "time_basis": "媒体发布时间",
-      "source_name": "东方财富全球财经快讯",
-      "source_url": "https://finance.eastmoney.com/a/202611273942054680.html",
-      "source_type": "media_monitoring",
-      "impact_level": "medium",
-      "tone": "warning",
-      "affected_assets": "全球利率 / 成长估值 / 汇率",
-      "market_impact": "关注政策路径是否改变实际利率和成长资产估值。",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "category": "政要发言",
-      "headline": "俄罗斯考虑对来自“不友好国家”的海产品进口征收关税",
-      "summary": "据报道，俄罗斯考虑对来自“不友好国家”的海产品进口征收关税。",
-      "published_at": "2026-11-27T17:43:03+08:00",
+      "headline": "加拿大首份林业战略将美国关税列为关键挑战",
+      "summary": "【加拿大首份林业战略将美国关税列为关键挑战】加拿大能源与自然资源部长蒂姆·霍奇森27日宣布，该国发布首份联邦林业战略。该战略将美国关税列为关键挑战。",
+      "published_at": "2026-11-28T10:27:10+08:00",
       "time_basis": "媒体发布时间",
       "source_name": "东方财富全球财经快讯",
-      "source_url": "https://finance.eastmoney.com/a/202611273941768317.html",
+      "source_url": "https://finance.eastmoney.com/a/202611283942340028.html",
       "source_type": "media_monitoring",
       "impact_level": "medium",
       "tone": "warning",
       "affected_assets": "全球风险资产 / 出口链 / 汇率",
       "market_impact": "关注关税、制裁或政策措辞是否形成可执行措施。",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
+    },
+    {
+      "category": "政要发言",
+      "headline": "海南自贸港封关后药企如何获益？海关揭晓三大“密码”",
+      "summary": "【海南自贸港封关后药企如何获益？海关揭晓三大“密码”】海南自贸港封关运作即将满一年，自贸港红利如何赋能生物医药产业？海口海关关税处副处长辜振成27日揭晓三大“密码”：信用监管赋能、便利化监管举措支撑、加工增值政策助力。",
+      "published_at": "2026-11-28T09:52:43+08:00",
+      "time_basis": "媒体发布时间",
+      "source_name": "东方财富全球财经快讯",
+      "source_url": "https://finance.eastmoney.com/a/202611283942336754.html",
+      "source_type": "media_monitoring",
+      "impact_level": "medium",
+      "tone": "warning",
+      "affected_assets": "全球风险资产 / 出口链 / 汇率",
+      "market_impact": "关注关税、制裁或政策措辞是否形成可执行措施。",
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     }
   ],
   "shipping": [
@@ -1264,7 +1264,7 @@
       "interpretation": "近7日通行量明显低于28日均值，需观察是否继续恶化。",
       "publisher": "IMF PortWatch / UN Global Platform",
       "canonical_url": "https://data-download.imf.org/climatedata/portwatch-chokepoints-indicators.html?portid=chokepoint6",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "route_id": "chokepoint4",
@@ -1280,7 +1280,7 @@
       "interpretation": null,
       "publisher": "IMF PortWatch / UN Global Platform",
       "canonical_url": "https://data-download.imf.org/climatedata/portwatch-chokepoints-indicators.html?portid=chokepoint4",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "route_id": "chokepoint1",
@@ -1296,7 +1296,7 @@
       "interpretation": null,
       "publisher": "IMF PortWatch / UN Global Platform",
       "canonical_url": "https://data-download.imf.org/climatedata/portwatch-chokepoints-indicators.html?portid=chokepoint1",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     }
   ],
   "commodities": [
@@ -1316,7 +1316,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/SC0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "贵金属",
@@ -1334,7 +1334,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/AU0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "贵金属",
@@ -1352,7 +1352,7 @@
       "interpretation": "涨幅显著，关注上游受益与下游成本压力。",
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/AG0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "有色金属",
@@ -1370,7 +1370,7 @@
       "interpretation": "涨幅显著，关注上游受益与下游成本压力。",
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/CU0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "有色金属",
@@ -1388,7 +1388,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/AL0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "有色金属",
@@ -1406,7 +1406,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/ZN0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "有色金属",
@@ -1424,7 +1424,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/NI0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "有色金属",
@@ -1442,7 +1442,7 @@
       "interpretation": "涨幅显著，关注上游受益与下游成本压力。",
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/SN0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "黑色金属",
@@ -1460,7 +1460,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/I0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "黑色金属",
@@ -1478,7 +1478,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/RB0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "黑色金属",
@@ -1496,7 +1496,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/HC0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "黑色金属",
@@ -1514,7 +1514,7 @@
       "interpretation": "涨幅显著，关注上游受益与下游成本压力。",
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/J0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "黑色金属",
@@ -1532,7 +1532,7 @@
       "interpretation": "涨幅显著，关注上游受益与下游成本压力。",
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/JM0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "新能源材料",
@@ -1550,7 +1550,7 @@
       "interpretation": "涨幅显著，关注上游受益与下游成本压力。",
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/LC0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "新能源材料",
@@ -1568,7 +1568,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/SI0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     },
     {
       "group": "新能源材料",
@@ -1586,7 +1586,7 @@
       "interpretation": null,
       "publisher": "新浪财经（AKShare采集）",
       "canonical_url": "https://finance.sina.com.cn/futures/quotes/PS0.shtml",
-      "retrieved_at": "2026-11-28T02:24:00+08:00"
+      "retrieved_at": "2026-11-28T18:09:18+08:00"
     }
   ],
   "capital_flows": {
@@ -1739,8 +1739,8 @@
           "to_period": "2026-11-27"
         },
         "foreign_conditions": {
-          "real_yield_change_pp": -0.1,
-          "real_yield_change_pp_period": "2026-11-24",
+          "real_yield_change_pp": -0.15,
+          "real_yield_change_pp_period": "2026-11-25",
           "vix_change_points": -1.64,
           "vix_change_points_period": "2026-11-26"
         }
@@ -1772,8 +1772,8 @@
           "to_period": "2026-11-27"
         },
         "foreign_conditions": {
-          "real_yield_change_pp": 0.13,
-          "real_yield_change_pp_period": "2026-11-24",
+          "real_yield_change_pp": -0.05,
+          "real_yield_change_pp_period": "2026-11-25",
           "vix_change_points": 8.1,
           "vix_change_points_period": "2026-11-26"
         }
@@ -1805,8 +1805,8 @@
           "to_period": "2026-11-27"
         },
         "foreign_conditions": {
-          "real_yield_change_pp": 0.13,
-          "real_yield_change_pp_period": "2026-11-24",
+          "real_yield_change_pp": 0.09,
+          "real_yield_change_pp_period": "2026-11-25",
           "vix_change_points": 9.6,
           "vix_change_points_period": "2026-11-26"
         }
@@ -1832,16 +1832,8 @@
   },
   "data_gaps": [
     {
-      "indicator_id": "M8-GDELT-政要发言",
-      "reason": "免费源采集失败：HTTPError: 429 Client Error: Too Many Requests for url: https://api.gdeltproject.org/api/v2/doc/doc?query=%28%22White+House%22+OR+%22US+president%22+OR+%22European+Commission+president%22+OR+%22Japan+prime+minister%22+OR+%22South+Korea+president%22%29+%28tariff+OR+sanction+OR+market+OR+economy+OR+trade+OR+oil+OR+%22posted+on+X%22+OR+tweet%29&mode=artlist&maxrecords=30&format=json&startdatetime=20261126062400&enddatetime=20261127182400&sort=HybridRel"
-    },
-    {
-      "indicator_id": "M8-GDELT-主要央行",
-      "reason": "免费源采集失败：HTTPError: 429 Client Error: Too Many Requests for url: https://api.gdeltproject.org/api/v2/doc/doc?query=%28%22Federal+Reserve%22+OR+ECB+OR+%22Bank+of+Japan%22+OR+%22Bank+of+Korea%22+OR+%22Bank+of+England%22%29+%28%22interest+rate%22+OR+hike+OR+cut+OR+%22monetary+policy%22%29&mode=artlist&maxrecords=30&format=json&startdatetime=20261126062400&enddatetime=20261127182400&sort=HybridRel"
-    },
-    {
       "indicator_id": "M8-GDELT-地缘与能源",
-      "reason": "免费源采集失败：HTTPError: 429 Client Error: Too Many Requests for url: https://api.gdeltproject.org/api/v2/doc/doc?query=%28%22Strait+of+Hormuz%22+OR+%22Red+Sea%22+OR+%22Bab+el-Mandeb%22+OR+%22Suez+Canal%22+OR+%22Middle+East%22%29+%28attack+OR+war+OR+shipping+OR+vessel+OR+tanker+OR+oil+OR+blockade+OR+closure%29&mode=artlist&maxrecords=30&format=json&startdatetime=20261126062400&enddatetime=20261127182400&sort=HybridRel"
+      "reason": "免费源采集失败：HTTPError: 429 Client Error: Too Many Requests for url: https://api.gdeltproject.org/api/v2/doc/doc?query=%28%22Strait+of+Hormuz%22+OR+%22Red+Sea%22+OR+%22Bab+el-Mandeb%22+OR+%22Suez+Canal%22+OR+%22Middle+East%22%29+%28attack+OR+war+OR+shipping+OR+vessel+OR+tanker+OR+oil+OR+blockade+OR+closure%29&mode=artlist&maxrecords=30&format=json&startdatetime=20261126220918&enddatetime=20261128100918&sort=HybridRel"
     },
     {
       "indicator_id": "M2-C02",
@@ -1861,8 +1853,8 @@
     }
   ],
   "run": {
-    "run_id": "free-source-test-2026-11-28-daily",
-    "revision_id": "daily",
+    "run_id": "free-source-test-2026-11-28-close-repair-1808",
+    "revision_id": "close-repair-1808",
     "market_data_date": "2026-11-27",
     "collector": "scripts/collect-free-daily.py",
     "top_call": "宏观景气：制造业和非制造业PMI均低于50，景气同步回落。；跨市场情绪过热：A股情绪温度88/100 · 狂热/一致乐观；一致乐观属于逆向风险，不等于立即见顶。 当前有2个行业行情线索，均待估值与景气验证。",
